@@ -1,7 +1,9 @@
-library(pacman)
-p_load( tidyverse , 
-        janitor ,
-        lubridate )
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load( tidyverse , 
+                janitor ,
+                lubridate )
+
+# set to your working directory if you want
 
 setwd("D:/Economics/Projects/2019-ncov-tracking")
 

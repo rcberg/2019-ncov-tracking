@@ -1,10 +1,12 @@
-library(pacman)
-p_load( tidyverse ,
-        ggplot2  ,
-        lubridate,
-        sf ,
-        maps ,
-        gganimate)
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load( tidyverse ,
+                ggplot2  ,
+                lubridate,
+                sf ,
+                maps ,
+                gganimate)
+
+# change to your working directory if you want
 
 setwd("D:/Economics/Projects/2019-ncov-tracking")
 
