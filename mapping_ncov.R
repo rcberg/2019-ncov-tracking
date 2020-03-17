@@ -37,7 +37,7 @@ gr =
 world_plot = ggplot() + 
   geom_sf(data = world , fill = NA, col = "black", lwd = 0.3) +
   geom_sf(data = gr, color = "#cccccc", size = 0.15) + ## Manual graticule
-  geom_point( data = world_cases_today %>% mutate( complete_cases = ifelse( cases > 0 , 
+  geom_point( data = world_cases %>% mutate( complete_cases = ifelse( cases > 0 , 
                                                                       cases  ,
                                                                       NA ) ), 
               aes( x = long , y = lat , size = complete_cases ) , 
@@ -50,8 +50,6 @@ world_plot = ggplot() +
 world_dyn = world_plot + transition_states( date ) + ggtitle( '2019-nCov around the world' , 
                                                   subtitle = "{closest_state}")
 
-animate( world_dyn , width = 900 , height = 900 , duration = 25 )
-
 library(leaflet)
 world_cases_sf %>% 
   filter( cases > 0 ) %>%
@@ -63,3 +61,28 @@ world_cases_sf %>%
                                     "<br>", "Confirmed Cases: ", prettyNum(cases, big.mark=",")),
                     color = 'red' , 
                     stroke = F ) 
+
+
+usa_cases = usa_data_df %>% filter( type == "Confirmed Cases") %>% 
+  ggplot() + 
+  geom_line( aes( x = date , y = cases ) ,
+             size = 1 , 
+             color = 'red') + 
+  labs( title = "2019 Novel Coronavirus in the United States" , 
+        y = "Number of Deaths" , 
+        x = "Date" ) + 
+  theme_ipsum_rc( axis_title_size = 15 )
+
+ggsave( "data/plots/usa_mar_16.png" , plot = usa_cases  )
+
+usa_deaths = usa_data_df %>% filter( type == "Death") %>% 
+  ggplot() + 
+  geom_line( aes( x = date , y = cases ) ,
+             size = 1 , 
+             color = 'red') + 
+  labs( title = "2019 Novel Coronavirus in the United States" , 
+        y = "Number of Deaths" , 
+        x = "Date" ) + 
+  theme_ipsum_rc( axis_title_size = 15 )
+
+ggsave( "data/plots/usa_mar_16_deaths.png" , usa_deaths )

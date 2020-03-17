@@ -73,13 +73,22 @@ state_data_df =
 saveRDS( state_data_df , "data/export/usa_state_data.rds" )
 # us nationwide data
 
-usa_data_df = 
+usa_early2020_df = 
   state_data_df %>% 
-  filter( province_state %in% c(state.name, "Washington, D.C." , "Diamond Princess" , "Grand Princess") ) %>%
+  filter( !province_state %in% state.name &
+          date < "2020-03-10") %>%
   group_by( date , type ) %>%
   summarise( cases = sum(cases) ) %>%
-  arrange( desc(date)) %>%
-  mutate( lat = 38.5266 , 
-          long = -96.7265 )
+  arrange( desc(date))  
+
+usa_data_mmar_df = 
+  state_data_df %>% 
+  filter( province_state %in% c(state.name, "Washington, D.C." , "Diamond Princess" , "Grand Princess") &
+            date > "2020-03-09") %>%
+  group_by( date , type ) %>%
+  summarise( cases = sum(cases) ) %>%
+  arrange( desc(date))
+
+usa_data_df = rbind(usa_early2020_df , usa_data_mmar_df)
 
 saveRDS( usa_data_df , "data/export/usa_national_data.rds" )
