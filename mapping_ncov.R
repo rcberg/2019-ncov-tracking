@@ -4,7 +4,12 @@ pacman::p_load( tidyverse ,
                 lubridate,
                 sf ,
                 maps ,
-                gganimate)
+                hrbrthemes , 
+                plotly )
+
+# world data in general
+
+world_data = readRDS("data/export/worldwide_data.rds")
 
 # change to your working directory if you want
 
@@ -13,7 +18,8 @@ setwd("D:/Economics/Projects/2019-ncov-tracking")
 
 ## 2019-nCov around the world
 
-world_cases = readRDS("data/export/worldwide_data.rds") %>%
+world_cases = 
+  world_data %>%
   filter( type == "Confirmed Cases" ) %>%
   select(-type )
 
@@ -47,8 +53,6 @@ world_plot = ggplot() +
   theme( panel.background = element_rect( fill = 'white')) + 
   labs(title = "2019 nCov Around the world")
 
-world_dyn = world_plot + transition_states( date ) + ggtitle( '2019-nCov around the world' , 
-                                                  subtitle = "{closest_state}")
 
 library(leaflet)
 world_cases_sf %>% 
@@ -66,10 +70,9 @@ world_cases_sf %>%
 usa_cases = usa_data_df %>% filter( type == "Confirmed Cases") %>% 
   ggplot() + 
   geom_line( aes( x = date , y = cases ) ,
-             size = 1 , 
              color = 'red') + 
   labs( title = "2019 Novel Coronavirus in the United States" , 
-        y = "Number of Deaths" , 
+        y = "Number of Confirmed Cases" , 
         x = "Date" ) + 
   theme_ipsum_rc( axis_title_size = 15 )
 
@@ -86,3 +89,108 @@ usa_deaths = usa_data_df %>% filter( type == "Death") %>%
   theme_ipsum_rc( axis_title_size = 15 )
 
 ggsave( "data/plots/usa_mar_16_deaths.png" , usa_deaths )
+
+## italy cases and deaths
+
+
+### cases
+
+
+italy_data =  
+  world_data %>% 
+  filter( country_region == "Italy")
+          
+          
+italy_cases =  
+  italy_data %>% 
+  filter( type == "Confirmed Cases" )
+
+italy_cases_plot = 
+  italy_cases %>%
+  ggplot() + 
+  geom_line( aes( x = date , y = cases ) ,
+             size = 1 , 
+             color = 'red') + 
+  labs( title = "2019 Novel Coronavirus in Italy" , 
+        y = "Number of Confirmed Cases" , 
+        x = "Date" ) + 
+  theme_ipsum_rc( axis_title_size = 15 )
+
+ggsave("data/plots/italy_mar18_cases.png", italy_cases_plot )
+
+
+### deaths 
+
+
+italy_deaths = 
+  italy_data %>% 
+  filter( type == "Death" )
+
+italy_deaths_plot =  
+  italy_deaths %>%
+  ggplot() + 
+  geom_line( aes( x = date , y = cases ) ,
+             size = 1 , 
+             color = 'red') + 
+  labs( title = "2019 Novel Coronavirus in Italy" , 
+        y = "Number of Deaths" , 
+        x = "Date" ) + 
+  theme_ipsum_rc( axis_title_size = 15 )
+
+ggsave("data/plots/italy_mar18_deaths.png", italy_deaths_plot )
+
+italy_plot =
+  italy_data %>%
+  filter( !type == "Recovered") %>%
+  ggplot() + 
+  geom_line( aes( x = date , y = cases , 
+                  color = as.factor(type) ) ,
+             size = 1 ) + 
+  labs( title = "2019 Novel Coronavirus in Italy" , 
+        y = "Number of Deaths" , 
+        x = "Date" ,
+        color = "Type") +
+  theme_ipsum_rc( axis_title_size = 15 )
+
+
+## worldwide cases
+
+country_cases = 
+  world_cases %>% 
+  group_by( country_region , date) %>%
+  summarise( cases = sum(cases) )
+
+non_china_cases = 
+  country_cases %>%
+  filter( country_region != "China" )
+
+non_china_cases_plot = 
+  non_china_cases %>%
+  ggplot( ) + 
+  geom_line( aes( x = date , y = cases , color = country_region ) ) + 
+  labs( title = "COVID-19 cases worldwide" , 
+        x = "Date" , 
+        y = " Confirmed Cases" , 
+        color = "Country" ) +
+  theme_ipsum_rc( axis_title_size = 15 )
+
+plotly::ggplotly( non_china_cases_plot
+                  )
+
+## chinese cases
+
+china_cases = 
+country_cases %>% 
+  filter( country_region == "China" ) %>%
+  mutate( cases_L = dplyr::lag(cases) ,
+          del = cases - cases_L )
+
+#china_cases %>% 
+#  ggplot(aes(x = date , y = del)) +
+#  geom_line( ) + geom_smooth( se = F ) + 
+#  labs( title = "Daily new cases in China" , 
+#        x = "Date" , 
+#        y = "Number of new cases", 
+#        caption = "Blue line is local regression estimate") + 
+#  theme_ipsum_pub( axis_title_size =  15)
+#
