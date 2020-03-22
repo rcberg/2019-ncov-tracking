@@ -23,10 +23,6 @@ pacman::p_load( tidyverse ,
 
 world_data = readRDS("data/export/worldwide_data.rds")
 
-# change to your working directory if you want
-
-setwd("D:/Economics/Projects/2019-ncov-tracking")
-
 
 ## 2019-nCov around the world
 
