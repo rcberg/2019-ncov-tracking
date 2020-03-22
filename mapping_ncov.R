@@ -14,7 +14,9 @@ pacman::p_load( tidyverse ,
 ###  data that's pulled
 ###  and cleaned in 
 ###  the "data_update.R"
-###  script. 
+###  script and craft 
+###  some informative
+###  graphs and maps. 
 ###
 ##########################
 
