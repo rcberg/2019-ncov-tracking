@@ -7,6 +7,16 @@ pacman::p_load( tidyverse ,
                 hrbrthemes , 
                 plotly )
 
+#######################
+## 
+## here we take the
+## data hat is pulled
+## and cleaned from 
+## the "data_update.R"
+## script. 
+##
+#######################
+
 # world data in general
 
 world_data = readRDS("data/export/worldwide_data.rds")
@@ -27,12 +37,14 @@ world_cases_today = world_cases %>%
   filter( date == ymd(max(date)))
 
 
-world  = st_as_sf(map("world", plot = FALSE, fill = TRUE)) %>% 
+world  = 
+  st_as_sf(map("world", plot = FALSE, fill = TRUE)) %>% 
   st_transform( crs = 4326 )
 
 proj_crs = st_crs(world)
 
-world_cases_sf = world_cases_today %>% 
+world_cases_sf = 
+  world_cases_today %>% 
   st_as_sf( coords = c("long","lat") ,
             crs = 4326 )
 
@@ -66,8 +78,13 @@ world_cases_sf %>%
                     color = 'red' , 
                     stroke = F ) 
 
+## usa data
 
-usa_cases = usa_data_df %>% filter( type == "Confirmed Cases") %>% 
+usa_data_df = readRDS("data/export/usa_national_data.rds")
+
+usa_cases = 
+  usa_data_df %>% 
+  filter( type == "Confirmed Cases") %>% 
   ggplot() + 
   geom_line( aes( x = date , y = cases ) ,
              color = 'red') + 
@@ -78,7 +95,9 @@ usa_cases = usa_data_df %>% filter( type == "Confirmed Cases") %>%
 
 ggsave( "data/plots/usa_mar_16.png" , plot = usa_cases  )
 
-usa_deaths = usa_data_df %>% filter( type == "Death") %>% 
+usa_deaths = 
+  usa_data_df %>% 
+  filter( type == "Death") %>% 
   ggplot() + 
   geom_line( aes( x = date , y = cases ) ,
              size = 1 , 
@@ -185,12 +204,11 @@ country_cases %>%
   mutate( cases_L = dplyr::lag(cases) ,
           del = cases - cases_L )
 
-#china_cases %>% 
-#  ggplot(aes(x = date , y = del)) +
-#  geom_line( ) + geom_smooth( se = F ) + 
-#  labs( title = "Daily new cases in China" , 
-#        x = "Date" , 
-#        y = "Number of new cases", 
-#        caption = "Blue line is local regression estimate") + 
-#  theme_ipsum_pub( axis_title_size =  15)
-#
+china_cases %>% 
+  ggplot(aes(x = date , y = del)) +
+  geom_line( ) + geom_smooth( se = F ) + 
+  labs( title = "Daily new cases in China" , 
+        x = "Date" , 
+        y = "Number of new cases", 
+        caption = "Blue line is local regression estimate") + 
+  theme_ipsum_pub( axis_title_size =  15)
