@@ -9,9 +9,13 @@ pacman::p_load( tidyverse ,
 ###  this code will pull data on cases of the
 ###  2019 novel coronavirus from the john's
 ###  hopkins university Github repo which is 
-###  maintained/updated daily by ryan lau
+###  maintained/updated daily by ryan lau.
+### 
+###  code for graphs/maps using this
+###  data is in the "mapping_ncov.R" script. 
 ###
 ################################################
+
 
 ## confirmed cases
 

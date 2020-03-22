@@ -7,15 +7,17 @@ pacman::p_load( tidyverse ,
                 hrbrthemes , 
                 plotly )
 
-#######################
-## 
-## here we take the
-## data hat is pulled
-## and cleaned from 
-## the "data_update.R"
-## script. 
-##
-#######################
+
+##########################
+### 
+###  here we take the
+###  data that's pulled
+###  and cleaned in 
+###  the "data_update.R"
+###  script. 
+###
+##########################
+
 
 # world data in general
 
@@ -33,7 +35,8 @@ world_cases =
   filter( type == "Confirmed Cases" ) %>%
   select(-type )
 
-world_cases_today = world_cases %>%
+world_cases_today = 
+  world_cases %>%
   filter( date == ymd(max(date)))
 
 
