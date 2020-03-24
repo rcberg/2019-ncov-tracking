@@ -79,10 +79,6 @@ world_cases_sf %>%
                     color = 'red' , 
                     stroke = F ) 
 
-## usa state data 
-
-usa_state_df = readRDS("data/export/usa_statewide_data.rds")
-
 ## usa national data
 
 usa_data_df = readRDS("data/export/usa_national_data.rds")
@@ -117,13 +113,14 @@ ggsave( "data/plots/usa_mar_16_deaths.png" , usa_deaths )
 ## italy cases and deaths
 
 
-### cases
-
 
 italy_data =  
   world_data %>% 
   filter( country_region == "Italy")
-          
+
+
+### cases
+
           
 italy_cases =  
   italy_data %>% 
@@ -165,7 +162,6 @@ ggsave("data/plots/italy_mar18_deaths.png", italy_deaths_plot )
 
 italy_plot =
   italy_data %>%
-  filter( !type == "Recovered") %>%
   ggplot() + 
   geom_line( aes( x = date , y = cases , 
                   color = as.factor(type) ) ,
