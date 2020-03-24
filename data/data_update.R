@@ -78,6 +78,39 @@ state_data_df =
   filter( country_region == "US" )
 
 saveRDS( state_data_df , "data/export/usa_state_data.rds" )
+
+# us local data
+
+usa_localities_later_df = 
+  state_data_df %>% 
+  filter( province_state %in% c(state.name, "Washington, D.C." , "Diamond Princess" , "Grand Princess") &
+            date > "2020-03-09") %>% select(-country_region )
+
+coordinates = 
+  usa_localities_later_df %>%
+  filter( date == "2020-03-22" ) %>%
+  select( province_state , 
+          lat , 
+          long) %>% distinct()
+
+usa_localities_early_df = 
+  state_data_df %>% 
+  filter( !province_state %in% state.name &
+            date < "2020-03-10") %>%
+  separate( col = "province_state" , sep = ", ", into = c(NA , "abb")) %>%
+  merge( state_name_abb ) %>% 
+  select(-abb) %>%
+  bind_rows(state_data_df %>% 
+              filter( province_state %in% c("Diamond Princess" , "Grand Princess" , "District of Columbia") &
+                        date < "2020-03-10") ) %>%
+  group_by( province_state , date , type ) %>%
+  summarise( cases = sum(cases) ) %>% left_join( coordinates )
+
+usa_local_df = bind_rows( usa_localities_early_df , usa_localities_later_df)
+
+saveRDS( usa_local_df , "data/export/usa_statewide_data.rds")
+
+
 # us nationwide data
 
 usa_early2020_df = 

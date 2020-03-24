@@ -79,7 +79,11 @@ world_cases_sf %>%
                     color = 'red' , 
                     stroke = F ) 
 
-## usa data
+## usa state data 
+
+usa_state_df = readRDS("data/export/usa_statewide_data.rds")
+
+## usa national data
 
 usa_data_df = readRDS("data/export/usa_national_data.rds")
 
