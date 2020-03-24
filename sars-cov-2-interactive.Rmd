@@ -1,0 +1,125 @@
+---
+title: "SARS-CoV-2 Around the World"
+author: "Chris Berg"
+date: <br>`r Sys.Date()`
+output: 
+  html_document:
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
+
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load( tidyverse ,
+                ggplot2  ,
+                lubridate,
+                sf ,
+                maps ,
+                leaflet, 
+                hrbrthemes , 
+                plotly )
+
+world_data = readRDS("data/export/worldwide_data.rds")
+
+```
+
+The data used here comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub repo](https://github.com/CSSEGISandData/COVID-19) which is updated daily. Updates to this page will occur as soon as they can after the JHU data gets updated.
+
+## Interactive world map of SARS-CoV-2
+
+
+```{r worldmap-data, include=F}
+world_cases = 
+  world_data %>%
+  filter( type == "Confirmed Cases" ) %>%
+  select(-type )
+
+world_cases_today = 
+  world_cases %>%
+  filter( date == ymd(max(date)))
+
+
+world  = 
+  st_as_sf(map("world", plot = FALSE, fill = TRUE)) %>% 
+  st_transform( crs = 4326 )
+
+proj_crs = st_crs(world)
+
+world_cases_sf = 
+  world_cases_today %>% 
+  st_as_sf( coords = c("long","lat") ,
+            crs = 4326 )
+
+gr = 
+  st_graticule(lat = c(-89.9,seq(-80,80,20),89.9) , 
+               crs = 4326)
+
+world_plot = ggplot() + 
+  geom_sf(data = world , fill = NA, col = "black", lwd = 0.3) +
+  geom_sf(data = gr, color = "#cccccc", size = 0.15) + ## Manual graticule
+  geom_point( data = world_cases %>% mutate( complete_cases = ifelse( cases > 0 , 
+                                                                      cases  ,
+                                                                      NA ) ), 
+              aes( x = long , y = lat , size = complete_cases ) , 
+              alpha = 0.4 , 
+              color = 'red') + 
+  coord_sf(datum = NA) +
+  theme( panel.background = element_rect( fill = 'white')) + 
+  labs(title = "2019 nCov Around the world")
+
+```
+
+Below is an interactive world map, highlighting the cases of Coronavirus (SARS-CoV-2) within countries and provinces, which can be seen at any level of detail by simply zooming-in on the map. Larger red circles indicate a greater number of Coronavirus cases in the area, and clicking on the red circles gives the name of the area it represents, as well as their number of cases which have been confirmed.
+
+```{r worldmap-int, echo=F , fig.align='center'}
+
+world_cases_sf %>% 
+  filter( cases > 0 ) %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>% 
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addCircleMarkers( radius = ~log(cases) , 
+                    popup = ~paste0(paste(province_state, country_region , sep = ", ") , 
+                                    "<br>", "Confirmed Cases: ", prettyNum(cases, big.mark=",")),
+                    color = 'red' , 
+                    stroke = F ) 
+
+```
+
+
+## SARS-CoV-2 cases over time
+
+```{r data-plot, include=F}
+
+country_cases = 
+  world_cases %>% 
+  group_by( country_region , date) %>%
+  summarise( cases = sum(cases) )
+
+non_china_cases = 
+  country_cases %>%
+  filter( country_region != "China" )
+
+non_china_cases_plot = 
+  non_china_cases %>%
+  ggplot( ) + 
+  geom_line( aes( x = date , y = cases , color = country_region ) ) + 
+  labs( title = "COVID-19 cases worldwide" , 
+        x = "Date" , 
+        y = " Confirmed Cases" , 
+        color = "Country" ) +
+  theme_ipsum_rc( axis_title_size = 15 )
+
+```
+
+The novel coronavirus has overwhelmed nations with exponential growth. Below, an interactive graph shows these exponential growth curves in each country. Double-click the country name in the legend to the right of the chart in order to single-out that country's growth curve. Any number of countries are able to be selected and compared.
+
+```{r int-plot, echo=FALSE}
+
+plotly::ggplotly( non_china_cases_plot
+                  )
+
+```
+
