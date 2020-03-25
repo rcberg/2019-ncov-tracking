@@ -206,18 +206,13 @@ country_cases =
   group_by( country_region , date) %>%
   summarise( cases = sum(cases) )
 
-non_china_cases = 
-  country_cases %>%
-  filter( country_region != "China" )
-
-non_china_deaths = 
+country_deaths = 
   world_deaths %>% 
   group_by( country_region , date) %>%
-  summarise( cases = sum(cases) ) %>%
-  filter( country_region != "China" )
+  summarise( cases = sum(cases) ) 
 
-non_china_cases_plot = 
-  non_china_cases %>%
+cases_plot = 
+  country_cases %>%
   ggplot( ) + 
   geom_line( aes( x = date , y = cases , color = country_region ) ) + 
   labs( title = "COVID-19 cases worldwide" , 
@@ -226,20 +221,20 @@ non_china_cases_plot =
         color = "Country" ) +
   theme_ipsum_rc( axis_title_size = 15 )
 
-non_china_deaths_plot = 
-  non_china_deaths %>%
+deaths_plot = 
+  country_deaths %>%
   ggplot( ) + 
   geom_line( aes( x = date , y = cases , color = country_region ) ) + 
-  labs( title = "COVID-19 cases worldwide" , 
+  labs( title = "COVID-19 deaths worldwide" , 
         x = "Date" , 
         y = " Deaths" , 
         color = "Country" ) +
   theme_ipsum_rc( axis_title_size = 15 )
 
-plotly::ggplotly( non_china_cases_plot
+plotly::ggplotly( cases_plot
                   )
 
-plotly::ggplotly( non_china_deaths_plot
+plotly::ggplotly( deaths_plot
 )
 
 

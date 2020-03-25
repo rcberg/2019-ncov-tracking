@@ -27,7 +27,7 @@ world_data = readRDS("data/export/worldwide_data.rds")
 
 The data used here comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub repo](https://github.com/CSSEGISandData/COVID-19) which is updated daily. Updates to this page will occur as soon as they can after the JHU data gets updated.
 
-## Interactive world map of SARS-CoV-2
+## Interactive world map of SARS-CoV-2 cases
 
 
 ```{r worldmap-data, include=F}
@@ -40,6 +40,14 @@ world_cases_today =
   world_cases %>%
   filter( date == ymd(max(date)))
 
+world_deaths = 
+  world_data %>%
+  filter( type == "Death" ) %>%
+  select(-type )
+
+world_deaths_today = 
+  world_deaths %>%
+  filter( date == ymd(max(date)))
 
 world  = 
   st_as_sf(map("world", plot = FALSE, fill = TRUE)) %>% 
@@ -49,6 +57,11 @@ proj_crs = st_crs(world)
 
 world_cases_sf = 
   world_cases_today %>% 
+  st_as_sf( coords = c("long","lat") ,
+            crs = 4326 )
+
+world_deaths_sf = 
+  world_deaths_today %>% 
   st_as_sf( coords = c("long","lat") ,
             crs = 4326 )
 
@@ -98,12 +111,14 @@ country_cases =
   group_by( country_region , date) %>%
   summarise( cases = sum(cases) )
 
-non_china_cases = 
-  country_cases %>%
-  filter( country_region != "China" )
 
-non_china_cases_plot = 
-  non_china_cases %>%
+country_deaths = 
+  world_deaths %>% 
+  group_by( country_region , date) %>%
+  summarise( cases = sum(cases) ) 
+
+cases_plot = 
+  country_cases %>%
   ggplot( ) + 
   geom_line( aes( x = date , y = cases , color = country_region ) ) + 
   labs( title = "COVID-19 cases worldwide" , 
@@ -112,14 +127,51 @@ non_china_cases_plot =
         color = "Country" ) +
   theme_ipsum_rc( axis_title_size = 15 )
 
+deaths_plot = 
+  country_deaths %>%
+  ggplot( ) + 
+  geom_line( aes( x = date , y = cases , color = country_region ) ) + 
+  labs( title = "COVID-19 deaths worldwide" , 
+        x = "Date" , 
+        y = " Deaths" , 
+        color = "Country" ) +
+  theme_ipsum_rc( axis_title_size = 15 )
+
 ```
 
 The novel coronavirus has overwhelmed nations with exponential growth. Below, an interactive graph shows these exponential growth curves in each country. Double-click the country name in the legend to the right of the chart in order to single-out that country's growth curve. Any number of countries are able to be selected and compared.
 
-```{r int-plot, echo=FALSE}
+```{r int-plot, echo=FALSE, dpi = 120 }
 
-plotly::ggplotly( non_china_cases_plot
+plotly::ggplotly( cases_plot
                   )
 
 ```
 
+Turning to deaths, instead of just confirmed cases:
+
+## Interactive world map of SARS-CoV-2 deaths 
+
+```{r world-deaths-map, echo = F, fig.align='center'}
+
+world_deaths_sf %>% 
+  filter( cases > 0 ) %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>% 
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addCircleMarkers( radius = ~log(cases) , 
+                    popup = ~paste0(paste(province_state, country_region , sep = ", ") , 
+                                    "<br>", "Deaths: ", prettyNum(cases, big.mark=",")),
+                    color = 'red' , 
+                    stroke = F ) 
+
+```
+
+## SARS-CoV-2 deaths over time
+
+```{r int-deaths-plot, echo=FALSE, dpi = 120 }
+
+plotly::ggplotly( deaths_plot
+                  )
+
+```
