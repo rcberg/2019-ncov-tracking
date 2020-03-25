@@ -33,10 +33,18 @@ world_cases =
   filter( type == "Confirmed Cases" ) %>%
   select(-type )
 
+world_deaths = 
+  world_data %>%
+  filter( type == "Death" ) %>%
+  select(-type )
+
 world_cases_today = 
   world_cases %>%
   filter( date == ymd(max(date)))
 
+world_deaths_today = 
+  world_deaths %>%
+  filter( date == ymd(max(date)))
 
 world  = 
   st_as_sf(map("world", plot = FALSE, fill = TRUE)) %>% 
@@ -46,6 +54,11 @@ proj_crs = st_crs(world)
 
 world_cases_sf = 
   world_cases_today %>% 
+  st_as_sf( coords = c("long","lat") ,
+            crs = 4326 )
+
+world_deaths_sf = 
+  world_deaths_today %>% 
   st_as_sf( coords = c("long","lat") ,
             crs = 4326 )
 
@@ -79,6 +92,17 @@ world_cases_sf %>%
                     color = 'red' , 
                     stroke = F ) 
 
+world_deaths_sf %>% 
+  filter( cases > 0 ) %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>% 
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addCircleMarkers( radius = ~log(cases) , 
+                    popup = ~paste0(paste(province_state, country_region , sep = ", ") , 
+                                    "<br>", "Deaths: ", prettyNum(cases, big.mark=",")),
+                    color = 'red' , 
+                    stroke = F ) 
+
 ## usa national data
 
 usa_data_df = readRDS("data/export/usa_national_data.rds")
@@ -109,6 +133,8 @@ usa_deaths =
   theme_ipsum_rc( axis_title_size = 15 )
 
 ggsave( "data/plots/usa_mar_16_deaths.png" , usa_deaths )
+
+
 
 ## italy cases and deaths
 
@@ -184,6 +210,12 @@ non_china_cases =
   country_cases %>%
   filter( country_region != "China" )
 
+non_china_deaths = 
+  world_deaths %>% 
+  group_by( country_region , date) %>%
+  summarise( cases = sum(cases) ) %>%
+  filter( country_region != "China" )
+
 non_china_cases_plot = 
   non_china_cases %>%
   ggplot( ) + 
@@ -194,8 +226,22 @@ non_china_cases_plot =
         color = "Country" ) +
   theme_ipsum_rc( axis_title_size = 15 )
 
+non_china_deaths_plot = 
+  non_china_deaths %>%
+  ggplot( ) + 
+  geom_line( aes( x = date , y = cases , color = country_region ) ) + 
+  labs( title = "COVID-19 cases worldwide" , 
+        x = "Date" , 
+        y = " Deaths" , 
+        color = "Country" ) +
+  theme_ipsum_rc( axis_title_size = 15 )
+
 plotly::ggplotly( non_china_cases_plot
                   )
+
+plotly::ggplotly( non_china_deaths_plot
+)
+
 
 ## chinese cases
 
@@ -213,3 +259,4 @@ china_cases %>%
         y = "Number of new cases", 
         caption = "Blue line is local regression estimate") + 
   theme_ipsum_pub( axis_title_size =  15)
+
