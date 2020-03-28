@@ -9,7 +9,6 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(cache = TRUE)
 
 if(!require(pacman)) install.packages("pacman")
 pacman::p_load( tidyverse ,
