@@ -8,6 +8,8 @@
 #
 
 library(shiny)
+library(tidyverse)
+library(hrbrthemes)
 
 epi_data_function = 
     function(s0, i0, J, n, b, g){
@@ -29,11 +31,11 @@ epi_data_function =
         for( j in 2:J ){
             
             
-            sim_df$s[j] = ( 1 - b*sim_df$i[(j-1)]/N )*sim_df$s[(j-1)]
+            sim_df$s[j] = ( 1 - b*sim_df$i[(j-1)]/n )*sim_df$s[(j-1)]
             
             sim_df$r[j] = sim_df$r[(j-1)] + g*sim_df$i[(j-1)] 
             
-            sim_df$i[j] = (1 + b*sim_df$s[(j-1)]/N - g)*sim_df$i[(j-1)]
+            sim_df$i[j] = (1 + b*sim_df$s[(j-1)]/n - g)*sim_df$i[(j-1)]
             
             sim_df$t[j] = j
             
