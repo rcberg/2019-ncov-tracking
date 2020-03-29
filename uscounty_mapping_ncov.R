@@ -6,14 +6,14 @@ pacman::p_load( tidyverse ,
                 leaflet ,
                 RColorBrewer )
 
-recent_date = format(Sys.Date()-days(1) , "%m-%d-%Y")
+recent_date = format(Sys.Date() , "%m-%d-%Y")
 
 #past_data = 
 #  readRDS( paste0("data/export/us-county-data-updated-" , Sys.Date()-days(1) , ".rds" ,sep = "")
 #  ) 
 
 most_recent_data = 
-  readRDS( paste0("data/export/us-county-data-updated-" , Sys.Date()-days(1) , ".rds" ,sep = "")
+  readRDS( paste0("data/export/us-county-data-updated-" , Sys.Date() , ".rds" ,sep = "")
   ) %>%
   filter( last_update == recent_date ) %>%
   mutate( GEOID = ifelse( fips < 10000 , 
