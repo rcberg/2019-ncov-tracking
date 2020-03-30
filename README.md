@@ -7,3 +7,7 @@ This repository is where you'll find data and interactive maps showing coronavir
 
 ## US Counties 
 [Click here](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-uscounties.html) to see interactive maps of Coronavirus cases and deaths around the counties of the United States.
+
+## Epidemiology simulator
+
+[Click here](https://github.com/rcberg/2019-ncov-tracking/tree/master/econepimodel) to access a disease contagion simulation I made, including a brief explainer.
