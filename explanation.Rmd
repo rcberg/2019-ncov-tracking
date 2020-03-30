@@ -1,5 +1,5 @@
 ---
-title: "A Basic Epidemiological Contagion Model"
+title: "Flatten The Curve: A Basic Epi. Model"
 author: "Chris Berg"
 date: "3/29/2020"
 output: 
@@ -20,7 +20,7 @@ Epidemiologists model disease spread by looking at susceptible individuals, the 
 
 ### Quick note on deaths
 
-This is a very simple model that just attempts to describe spread dynamics. There is no death-- individuals get the disease and eventually recover. Epidemiologists have done a better job than me of adding things like mortality, but  I might try and add that in the future at some point after reading the research.
+This is a very simple model that just attempts to describe spread dynamics. There is no death-- individuals get the disease and eventually recover. Epidemiologists call these "non-vital" models. They have done a better job than me of adding things like mortality,  I might try and add that in the future at some point after reading the research.
 
 ## Simulation equations
 
@@ -34,8 +34,12 @@ The disease is described by a system of three equations at some given point in t
 
 \end{align*}
 
-## Explanation 
+## Flattening the Curve 
 
-Here $\beta$ is the *population transmission rate*, reflecting the rate which each infected person contaminates others each period. This is what policies like shelter-in-place orders and social distancing reduce. Reducing it is the main way that we respond to disease outbreaks. On the other hand $\gamma$ describes the rate at which infected persons recover.
+Here $\beta$ is the *population transmission rate*, reflecting the rate which each infected person contaminates others each period. This transmission rate is what such "flatten-the-curve" policies like shelter-in-place orders and social distancing can reduce. Reducing it is the main way that we respond to disease outbreaks, in fact.  When using the app, notice that a smaller $\beta$ will flatten the infected persons curve. On the other hand $\gamma$ describes the rate at which infected persons recover. Sometimes they are expressed together as $R_0 = \frac{\beta}{\gamma}$.
 
-The disease spreads at first because there are many susceptible individuals and few infected individuals. As the disease spreads, the population which is susceptible goes down (because they are either sick or recovered and thus immune), and infections eventually slow. The system settles to an equilibrium where the disease runs its course.
+Anyone reading this can [go to the app](https://rcberg.shinyapps.io/econepimodel/) and check out how much you'd need to lower the transmission rate to "flatten the curve" enough.
+
+### Further explanation
+
+The disease spreads at first because there are many susceptible individuals and few infected individuals. As it spreads, the population which is susceptible goes down (because they are either sick or recovered and thus immune), and infections eventually slow. The system settles to an equilibrium where the disease runs its course.
