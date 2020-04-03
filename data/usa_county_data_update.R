@@ -95,7 +95,8 @@ todays_data =
                         lat ) ,
           long = ifelse( is.na(fips) == T , 
                          long_correct , 
-                         long ) ) %>%
+                         long ) ,
+          last_update = mdy(last_update)) %>%
   select( -c(lat_correct , long_correct) )
 
 usa_counties = 
