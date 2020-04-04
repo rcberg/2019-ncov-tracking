@@ -19,10 +19,10 @@ epi_data_function =
                 s = rep(0, times = J) ,
                 r = rep(0, times = J) , 
                 i = rep(0, times = J) , 
-                t = rep(0, times = J)
+                t = c(1:J)
             )
         
-        sim_df$s[1] = s0
+        sim_df$s[1] = (n-i0)
         sim_df$r[1] = 0
         sim_df$i[1] = i0
         sim_df$t[1] = 1
@@ -37,8 +37,6 @@ epi_data_function =
             
             sim_df$i[j] = (1 + b*sim_df$s[(j-1)]/n - g)*sim_df$i[(j-1)]
             
-            sim_df$t[j] = j
-            
         }
         
         sim_df
@@ -49,22 +47,20 @@ ui <- fluidPage(
 
     # Application title
     titlePanel("A Basic Epidemiological Model"),
+    h5("Author: ", a("Chris Berg", href="https://twitter.com/rcberg", target="_blank")),
+    h5("Source code: ", a("https://github.com/rcberg/2019-ncov-tracking/", href="https://github.com/rcberg/2019-ncov-tracking/tree/master/econepimodel", target="_blank")),
+    
 
     # Sidebar with a slider
     sidebarLayout(
         sidebarPanel(
+            
             sliderInput("b",
                         "Population transmission rate:",
                         min = 0.7,
                         max = 2,
                         value = 1.5 , 
                         step = 0.1 ) ,
-            sliderInput("s0" , 
-                        "Number of initially susceptible:",
-                        min = 0 , 
-                        max = 100000 ,
-                        value = 100000 , 
-                        step = 10 ) ,
             sliderInput("i0" , 
                         "Number of initially infected:",
                         min = 1 , 
@@ -77,9 +73,10 @@ ui <- fluidPage(
                         min = 75 , 
                         max = 200 ,
                         value = 100
-                        )  
+                        ) 
             
         ),
+        
 
         # Show a plot
         mainPanel(
@@ -93,11 +90,10 @@ server <- function(input, output) {
     
     epi_plot = reactive({
         epi_data_function( 
-            s0 = input$s0 , 
+            n = 100000 , 
             i0 = input$i0 , 
             J = input$J ,
             b = input$b , 
-            n = 100000 , 
             g = 0.55 )
         
     })
@@ -107,7 +103,7 @@ server <- function(input, output) {
         ggplot( data = epi_plot() ) + 
             geom_line( aes( x = t , y = (i+r) , color = "Ever infected") ,
                        size = 1 
-            ) +
+            ) + 
             geom_line( aes( x = t , y = r , color = "Recovered" ) ,
                        size = 1 
             ) +
