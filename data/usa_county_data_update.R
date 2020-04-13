@@ -70,7 +70,7 @@ unassigned_states_coords =
 #)
 
 past_data = 
-  readRDS( paste0("data/export/us-county-data-updated-" , (Sys.Date()-days(1)) , ".rds" ,sep = "")
+  readRDS( paste0("data/export/us-county-data-updated-" , Sys.Date()-days(1) , ".rds" ,sep = "")
          ) 
 
 todays_date_chr = 
