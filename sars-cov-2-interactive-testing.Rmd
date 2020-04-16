@@ -1,0 +1,75 @@
+---
+title: "COVID Testing and Reliability"
+author: "Chris Berg"
+date: <br>`r format(Sys.Date(), '%d %B %Y') `
+output: 
+  html_document:
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require(pacman)) install.packages("pacman")
+p_load(tidyverse, 
+       tigris,
+       sf,
+       leaflet)
+
+options(tigris_class = "sf")
+```
+
+## Testing, and the Negative Test Share
+
+```{r datasets, include=F}
+
+us_states_map = 
+  tigris::states(cb = T ) 
+
+
+state_test_data = readRDS("data/export/states_testing_data.rds")
+
+
+state_test_map_df = 
+  left_join( state_test_data , 
+             us_states_map ) %>%
+  st_as_sf()
+
+```
+
+A major concern for using data to inform COVID-19 health policy has been measuring how many "actual" cases exist somewhere. If health workers are testing only those who are likeliest to have COVID, they're likely under-counting the many who have the virus but who are asymptomatic or otherwise aren't severely symptomatic. For this reason, a higher share of negative test results is used as a rule-of-thumb to gauge whether areas are doing a good job of going above and beyond to pick up even the seemingly-less-likely cases which are nonetheless positive. 
+
+Below is an interactive map of the US states, showing how many tests have been performed in the state, and (for reasons given above) how many of those tests came back negative. Since states might not report *all* tests (see source link at the bottom for a deeper explanation) they are each assigned a letter grade based on how complete is their reporting of positive, negative, and commercial laboratory results; this grade is also included in the states' info.
+
+```{r plot, echo=F}
+
+col_pal_negrate <- colorNumeric(palette = "viridis", domain = state_test_map_df$neg_rate, n = 10)
+
+neg_rate_plot = 
+  state_test_map_df %>%
+  st_transform(crs = "+init=epsg:4326") %>%
+  leaflet(width = "100%") %>% 
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(
+    popup = ~paste0(NAME, 
+                    "<br>", "Total tests: ", prettyNum(total_results, big.mark=",") , 
+                    "<br>", "Share of negative results: ", prettyNum(round(neg_rate,2), big.mark=",") , 
+                    "<br>" , "Data reliability grade: ", grade),
+    stroke = FALSE,
+    smoothFactor = 0,
+    fillOpacity = 0.7,
+    color = ~col_pal_negrate(neg_rate)
+  ) %>%
+  addLegend(
+    "bottomright", 
+    pal = col_pal_negrate, 
+    values = ~neg_rate,
+    title = "Share of Negative Results",
+    opacity = 1
+  ) %>% 
+  setView(lat=40, lng=-95, zoom=3.5 )
+
+neg_rate_plot
+```
+
+*Data courtesy of [The COVID Tracking Project](https://covidtracking.com/)*
