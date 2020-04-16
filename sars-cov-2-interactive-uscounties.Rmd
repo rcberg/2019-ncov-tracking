@@ -35,12 +35,13 @@ us_counties_map =
 most_recent_data = 
   readRDS( paste0("data/export/us-county-data-updated-" , Sys.Date()-days(1) , ".rds" ,sep = "")
   ) %>%
-  filter( last_update == mdy(recent_date) ) %>%
+  filter( last_update == mdy(recent_date) & fips < 60000 ) %>%
   mutate( GEOID = ifelse( fips < 10000 , 
                           paste(0,fips,sep="") , 
-                          fips ) 
+                          fips ) ,
+          cfr = deaths/confirmed
           ) %>%
-  select(GEOID , confirmed, deaths )
+  select(GEOID , confirmed, deaths , cfr)
 
 
 us_counties = 
@@ -49,73 +50,45 @@ us_counties =
 
 ```
 
-The maps below use recently-available, comprehensive public data on Coronavirus (AKA SARS-CoV-2; COVID-19; 2019-nCoV) cases and deaths among the United States counties . These maps are fully-interactive; one can zoom, pan, and click on the US counties to see their confirmed case counts and death counts.
+The map below uses comprehensive public data on COVID-19 cases and deaths among the United States counties. The map is fully-interactive; you can zoom, pan, and click on the US counties to see information on their confirmed case counts, death counts, and their *case fatality ratio* (the ratio of deaths to confirmed cases).
 
-*Note: Deaths in New York City are (inexplicably) rendered for Manhattan island, not for the other boroughs. Zoom in on the island to check the NYC case and death counts.*
+*Note: Data in New York City are (inexplicably) rendered for Manhattan island, not for the other boroughs. Zoom in on the island to check the NYC case and death counts.*
 
 Updated as of `r format(Sys.Date() , "%d %B %Y")`.
 
 
-## Confirmed Coronavirus cases in US counties
+## Confirmed Coronavirus cases and deaths in US counties
 
 
 ```{r casesmap, echo=FALSE}
 
 
-col_pal_cases <- colorNumeric(palette = "YlOrRd", domain = log(1+us_counties$confirmed), n = 10)
+col_pal <- colorNumeric(palette = "YlOrRd", domain = log(1+us_counties$confirmed), n = 10)
 
-cases_plot = 
+county_plot = 
   us_counties %>%
   st_transform(crs = "+init=epsg:4326") %>%
   leaflet(width = "100%") %>% 
   addProviderTiles(provider = "CartoDB.Positron") %>%
   addPolygons(
-    popup = ~paste0(NAME, "<br>", "Confirmed cases: ", prettyNum(confirmed, big.mark=",")),
+    popup = ~paste0(NAME, 
+                    "<br>", "Confirmed cases: ", prettyNum(confirmed, big.mark=","), 
+                    "<br>", "Deaths: ", prettyNum(deaths, big.mark=",") , 
+                    "<br>" , "Case fatality ratio: ", prettyNum(round(cfr,3), big.mark=",") ),
     stroke = FALSE,
     smoothFactor = 0,
     fillOpacity = 0.7,
-    color = ~col_pal_cases(log(1+confirmed))
+    color = ~col_pal(log(1+confirmed))
   ) %>%
   addLegend(
     "bottomright", 
-    pal = col_pal_cases, 
+    pal = col_pal, 
     values = ~log(1+confirmed),
     title = "Confirmed Cases (Logarithm)",
     opacity = 1
   ) %>% 
   setView(lat=40, lng=-95, zoom=3.5 )
 
-cases_plot
+county_plot
 
-```
-
-## Deaths from Coronavirus in US counties
-
-```{r deathsmap, echo=FALSE}
-
-
-col_pal_deaths <- colorNumeric(palette = "YlOrRd", domain = log(1+us_counties$deaths), n = 10)
-
-deaths_plot = 
-  us_counties %>%
-  st_transform(crs = "+init=epsg:4326") %>%
-  leaflet(width = "100%") %>% 
-  addProviderTiles(provider = "CartoDB.Positron") %>%
-  addPolygons(
-    popup = ~paste0(NAME, "<br>", "Deaths: ", prettyNum(deaths, big.mark=",")),
-    stroke = FALSE,
-    smoothFactor = 0,
-    fillOpacity = 0.7,
-    color = ~col_pal_deaths(log(1+deaths))
-  ) %>%
-  addLegend(
-    "bottomright", 
-    pal = col_pal_deaths, 
-    values = ~log(1+deaths),
-    title = "Deaths (Logarithm)",
-    opacity = 1
-  ) %>% 
-  setView(lat=40, lng=-95, zoom=3.5 )
-
-deaths_plot
 ```
