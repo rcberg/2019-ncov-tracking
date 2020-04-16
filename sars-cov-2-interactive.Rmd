@@ -1,5 +1,5 @@
 ---
-title: "SARS-CoV-2 Around the World"
+title: "COVID-19 Around the World"
 author: "Chris Berg"
 date: <br>`r format(Sys.Date(), '%d %B %Y') `
 output: 
@@ -20,32 +20,26 @@ pacman::p_load( tidyverse ,
                 hrbrthemes , 
                 plotly )
 
-world_data = readRDS("data/export/worldwide_data.rds")
+world_data = 
+  readRDS("data/export/worldwide_data.rds") %>%
+  filter( province_state != "Diamond Princess") %>%
+  pivot_wider( names_from = type , 
+               values_from = cases ) %>%
+  rename(cases = `Confirmed Cases` , 
+         deaths = Death ) %>%
+  mutate( cfr = deaths/cases )
 
 ```
 
 The data used here comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub repo](https://github.com/CSSEGISandData/COVID-19) which is updated daily. Updates to this page will occur as soon as they can after the JHU data gets updated.
 
-## Interactive world map of SARS-CoV-2 cases
+## Interactive world map of COVID-19
 
 
 ```{r worldmap-data, include=F}
-world_cases = 
+
+world_today = 
   world_data %>%
-  filter( type == "Confirmed Cases" ) %>%
-  select(-type )
-
-world_cases_today = 
-  world_cases %>%
-  filter( date == ymd(max(date)))
-
-world_deaths = 
-  world_data %>%
-  filter( type == "Death" ) %>%
-  select(-type )
-
-world_deaths_today = 
-  world_deaths %>%
   filter( date == ymd(max(date)))
 
 world  = 
@@ -54,13 +48,8 @@ world  =
 
 proj_crs = st_crs(world)
 
-world_cases_sf = 
-  world_cases_today %>% 
-  st_as_sf( coords = c("long","lat") ,
-            crs = 4326 )
-
-world_deaths_sf = 
-  world_deaths_today %>% 
+world_sf = 
+  world_today %>% 
   st_as_sf( coords = c("long","lat") ,
             crs = 4326 )
 
@@ -68,56 +57,41 @@ gr =
   st_graticule(lat = c(-89.9,seq(-80,80,20),89.9) , 
                crs = 4326)
 
-world_plot = ggplot() + 
-  geom_sf(data = world , fill = NA, col = "black", lwd = 0.3) +
-  geom_sf(data = gr, color = "#cccccc", size = 0.15) + ## Manual graticule
-  geom_point( data = world_cases %>% mutate( complete_cases = ifelse( cases > 0 , 
-                                                                      cases  ,
-                                                                      NA ) ), 
-              aes( x = long , y = lat , size = complete_cases ) , 
-              alpha = 0.4 , 
-              color = 'red') + 
-  coord_sf(datum = NA) +
-  theme( panel.background = element_rect( fill = 'white')) + 
-  labs(title = "2019 nCov Around the world")
-
 ```
 
-Below is an interactive world map, highlighting the cases of Coronavirus (SARS-CoV-2) within countries and provinces, which can be seen at any level of detail by simply zooming-in on the map. Larger red circles indicate a greater number of Coronavirus cases in the area, and clicking on the red circles gives the name of the area it represents, as well as their number of cases which have been confirmed.
+Below is an interactive world map, highlighting the cases, deaths, and case fatality ratios of COVID-19 (a.k.a. coronavirus or novel coronavirus ) within countries and provinces. Larger red circles indicate a greater number of Coronavirus cases in the area, and clicking on the red circles gives the name of the area it represents, their number of cases and deaths which have been confirmed, as well as the "case fatality ratio" (ratio of deaths to confirmed cases). *Tip: Use the drag and zoom features to select and enlarge regions of the map.*
 
 ```{r worldmap-int, echo=F , fig.align='center'}
 
-world_cases_sf %>% 
+world_sf %>% 
   filter( cases > 0 ) %>%
   st_transform(crs = "+init=epsg:4326") %>%
   leaflet(width = "100%") %>% 
   addProviderTiles(provider = "CartoDB.Positron") %>%
   addCircleMarkers( radius = ~log(cases) , 
                     popup = ~paste0(paste(province_state, country_region , sep = ", ") , 
-                                    "<br>", "Confirmed Cases: ", prettyNum(cases, big.mark=",")),
+                                    "<br>", "Confirmed Cases: ", prettyNum(cases, big.mark=",") , 
+                                    "<br>", "Deaths: " , prettyNum(deaths, big.mark=",") , 
+                                    "<br>", "Case fatality ratio: " , prettyNum(round(cfr,3))),
                     color = 'red' , 
                     stroke = F ) 
 
 ```
 
 
-## SARS-CoV-2 cases over time
+## COVID-19 cases and deaths over time
 
 ```{r data-plot, include=F}
 
-country_cases = 
-  world_cases %>% 
+country_df = 
+  world_data %>%
   group_by( country_region , date) %>%
-  summarise( cases = sum(cases) )
+  summarise( cases = sum(cases) , 
+             deaths = sum(deaths) )
 
-
-country_deaths = 
-  world_deaths %>% 
-  group_by( country_region , date) %>%
-  summarise( cases = sum(cases) ) 
 
 cases_plot = 
-  country_cases %>%
+  country_df %>%
   ggplot( ) + 
   geom_line( aes( x = date , y = cases , color = country_region ) ) + 
   labs( title = "COVID-19 cases worldwide" , 
@@ -127,9 +101,9 @@ cases_plot =
   theme_ipsum_rc( axis_title_size = 15 )
 
 deaths_plot = 
-  country_deaths %>%
+  country_df %>%
   ggplot( ) + 
-  geom_line( aes( x = date , y = cases , color = country_region ) ) + 
+  geom_line( aes( x = date , y = deaths , color = country_region ) ) + 
   labs( title = "COVID-19 deaths worldwide" , 
         x = "Date" , 
         y = " Deaths" , 
@@ -138,7 +112,7 @@ deaths_plot =
 
 ```
 
-The novel coronavirus has overwhelmed nations with exponential growth. Below, an interactive graph shows these exponential growth curves in each country. Double-click the country name in the legend to the right of the chart in order to single-out that country's growth curve. Any number of countries are able to be selected and compared.
+The novel coronavirus has overwhelmed nations with exponential growth. Below, interactive graphs show these exponential growth curves in each country. Double-click the country name in the legend to the right of the chart in order to single-out that country's growth curve. Any number of countries are able to be selected and compared.
 
 ```{r int-plot, echo=FALSE, dpi = 120 }
 
@@ -146,27 +120,6 @@ plotly::ggplotly( cases_plot
                   )
 
 ```
-
-Turning to deaths, instead of just confirmed cases:
-
-## Interactive world map of SARS-CoV-2 deaths 
-
-```{r world-deaths-map, echo = F, fig.align='center'}
-
-world_deaths_sf %>% 
-  filter( cases > 0 ) %>%
-  st_transform(crs = "+init=epsg:4326") %>%
-  leaflet(width = "100%") %>% 
-  addProviderTiles(provider = "CartoDB.Positron") %>%
-  addCircleMarkers( radius = ~log(cases) , 
-                    popup = ~paste0(paste(province_state, country_region , sep = ", ") , 
-                                    "<br>", "Deaths: ", prettyNum(cases, big.mark=",")),
-                    color = 'red' , 
-                    stroke = F ) 
-
-```
-
-## SARS-CoV-2 deaths over time
 
 ```{r int-deaths-plot, echo=FALSE, dpi = 120 }
 
