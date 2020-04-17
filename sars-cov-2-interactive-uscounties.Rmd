@@ -1,5 +1,5 @@
 ---
-title: "SARS-CoV-2 among US counties"
+title: "COVID-19 among US counties"
 author: "Chris Berg"
 date: <br>`r format(Sys.Date() , "%d %B %Y")`
 output: 
@@ -18,7 +18,7 @@ pacman::p_load( tidyverse ,
                 leaflet ,
                 RColorBrewer )
 
-recent_date = format(Sys.Date()-days(1) , "%m-%d-%Y")
+recent_date = Sys.Date()-days(1)
 
 ```
 
@@ -26,16 +26,15 @@ recent_date = format(Sys.Date()-days(1) , "%m-%d-%Y")
 
 ```{r datasets, include=F}
 
-
 options(tigris_class = "sf")
 us_counties_map = 
   tigris::counties(cb = T ) 
 
 
 most_recent_data = 
-  readRDS( paste0("data/export/us-county-data-updated-" , Sys.Date()-days(1) , ".rds" ,sep = "")
+  readRDS( paste0("data/export/us-county-data-updated-" , recent_date , ".rds" ,sep = "")
   ) %>%
-  filter( last_update == mdy(recent_date) & fips < 60000 ) %>%
+  filter( last_update == recent_date & fips < 60000 ) %>%
   mutate( GEOID = ifelse( fips < 10000 , 
                           paste(0,fips,sep="") , 
                           fips ) ,
@@ -90,5 +89,28 @@ county_plot =
   setView(lat=40, lng=-95, zoom=3.5 )
 
 county_plot
+
+```
+
+
+## Distribution of current case fatality ratios
+
+Different counties have different proportions of confirmed cases which have died. This can be due to not testing enough, and so only picking-up the most severe cases which are most-likely to end in fatality, but this is only one of many causes for the variation we see. Below is the entire distribution of case fatality ratios that we see today among US counties.
+
+```{r histogram, echo=F, warning=F}
+library(hrbrthemes)
+
+ most_recent_data %>%
+  filter( deaths > 0 ) %>%
+  ggplot() + 
+  geom_histogram( aes( x = cfr) , 
+                  fill = "#F8766D" , 
+                  color = "black" , 
+                  binwidth = 0.02) + 
+  labs( title = "Case fatality ratio among counties reporting deaths" , 
+        x = "Case fatality ratio" , 
+        y = "Number of counties") +
+  scale_x_continuous( breaks = pretty(most_recent_data$cfr , n = 10)  ) +
+  theme_ipsum_rc( axis_title_size = 15 )
 
 ```
