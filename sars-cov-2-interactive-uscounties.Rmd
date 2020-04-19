@@ -18,7 +18,7 @@ pacman::p_load( tidyverse ,
                 leaflet ,
                 RColorBrewer )
 
-recent_date = Sys.Date()-days(1)
+recent_date = Sys.Date()
 
 ```
 
@@ -28,8 +28,15 @@ recent_date = Sys.Date()-days(1)
 
 options(tigris_class = "sf")
 us_counties_map = 
-  tigris::counties(cb = T ) 
+  tigris::counties(cb = T )  %>%
+  mutate( GEOID = recode(GEOID ,
+                         "36005" = "36061" ,  
+                         "36047" = "36061" , 
+                         "36081" = "36061" , 
+                         "36085" = "36061" ) 
+          )
 
+us_counties_map$NAME[which(us_counties_map$GEOID == "36061")] = "New York"
 
 most_recent_data = 
   readRDS( paste0("data/export/us-county-data-updated-" , recent_date , ".rds" ,sep = "")
@@ -51,7 +58,6 @@ us_counties =
 
 The map below uses comprehensive public data on COVID-19 cases and deaths among the United States counties. The map is fully-interactive; you can zoom, pan, and click on the US counties to see information on their confirmed case counts, death counts, and their *case fatality ratio* (the ratio of deaths to confirmed cases).
 
-*Note: Data in New York City are (inexplicably) rendered for Manhattan island, not for the other boroughs. Zoom in on the island to check the NYC case and death counts.*
 
 Updated as of `r format(Sys.Date() , "%d %B %Y")`.
 
