@@ -16,13 +16,13 @@ p_load(tidyverse,
        sf,
        leaflet)
 
-options(tigris_class = "sf")
+
 ```
 
 ## Testing, and the Negative Test Share
 
 ```{r datasets, include=F}
-
+options(tigris_class = "sf")
 us_states_map = 
   tigris::states(cb = T ) 
 
