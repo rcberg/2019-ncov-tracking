@@ -31,9 +31,7 @@ install.packages("tidyverse")
 
 ```
 
-Some notes: Normally, you never need to add the line that says `repos = ` part. I need to do this because of the program I am using right now. You **do** need to put the package name in quotes during `install.packages()` because that tells R what to plug-into its package search engine.
-
-Anyway, now that it's installed, let's load the package. 
+You need to put the package name in quotes during `install.packages()` because that tells R what to plug-into its package search engine. Anyway, now that it's installed, let's load the package. 
 
 ```{r tidyverse-load }
 
