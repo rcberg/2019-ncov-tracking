@@ -68,11 +68,9 @@ head(covid_cases, 10)
 
 The data is there, but it looks like it's in a godawful format where each date is a separate variable and `dplyr` wants to tell us *all about* the column names, which defeats the purpose of cleaning-up the data preview! Such data, where most of the data values are contained in a sprawling number of columns, is called "wide" data. Each of those 160-or-so columns is telling us the exact same thing-- the number of cases. Now is a good time for an aside on "wide" vs. "long" data.
 
-Most scientists/people working with data prefer to have all of the values reflecting the same variable in one single column, and just have other columns contain variables (date, county, state etc.) which help *identify* which case we are looking at in a given row. In other words, have every column be an actual variable. This format is called "long" data, because it tends to have a lot of rows but much fewer columns. 
-
 ### Wide vs. Long data
 
-As diligent scientists, and people who aren't psyhopaths, let's now convert this wide data into long data. In Excel, this is called "pivoting," and I'm pretty sure that's what pivot tables are for. Thankfully you'll never need to use pivot tables again because R makes these conversions very easy! Like so...
+Most scientists/people working with data prefer to have all of the values reflecting the same variable in one single column, and just have other columns contain variables (date, county, state etc.) which help *identify* which case we are looking at in a given row. In other words, have every column be an actual variable. This format is called "long" data, because it tends to have a lot of rows but much fewer columns. As diligent scientists, and people who aren't psyhopaths, let's now convert this wide data into long data. In Excel, this is called "pivoting," and I'm pretty sure that's what pivot tables are for. Thankfully you'll never need to use pivot tables again because R makes these conversions very easy! Like so...
 
 ```{r pivot-longer}
 
