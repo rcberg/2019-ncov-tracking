@@ -62,7 +62,7 @@ Great; it's loaded, and it even told us the types of variables that it converted
 
 ```{r data-head}
 
-head(covid_cases, 10)
+head(covid_cases, 10) # 'head()' spits-out the first N rows of data. 10 here.
 
 ```
 
@@ -101,9 +101,11 @@ Much better! Now, every column represents a meaningful variable. I did notice so
 library(lubridate)
 covid_cases_long <- 
   mutate( covid_cases_long , 
-          date = mdy(date) ) # replaces the original date variable!
+          date = mdy(date) ) # 'mutate()' is just how we create new variables in tidyverse
 
-head(select( covid_cases_long , date), 8)
+# (mutate can also be used to replace variables, as we did just now)
+
+head(select( covid_cases_long , date), 8) # 'select()' picks/removes variables from a data set.
 ```
 
 Perfect, R knows it's a date, and it looks like one too! Behind-the-scenes, here, the `mdy()` function is just pre-emptively telling `lubridate` to look for something resembling a month first, then a day, then a year. Lubridate is powerful, but kinda stupid, and can get confused if we don't prime it with the right ordering. There is one last thing bothering me: A lot of these variables have capital letters in them, or otherwise funky names. Best-practice for clean data dictate that our variables should be all lowercase, and not contain superfluous characters (like the variable currently names "Long_"). 
@@ -160,7 +162,9 @@ This now-pristine dataset is exactly the same as the previous one, except the va
 covid_data_df <- 
   covid_cases_long %>%
   left_join( covid_deaths_long ) %>% 
-  filter(iso3 == "USA" & iso2 == "US")
+  filter(iso3 == "USA" & iso2 == "US") # 'filter()' tells us to keep or remove data-points according to the condition we supplied
+
+# (here, we are 'filter'-ing out all data that's not from one of the 50 states + DC)
 
 ```
 
