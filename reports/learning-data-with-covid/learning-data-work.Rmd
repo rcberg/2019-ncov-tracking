@@ -1,0 +1,270 @@
+---
+title: "Data Management in R Using COVID Data"
+author: "R. Chris Berg"
+date: "6/26/2020"
+output: 
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T , 
+                      cache = T )
+```
+
+## Setting up: Installing Packages
+
+R is a powerful statistical software by itself (or, as you'll see it called, "base R"), but its real strength lies in the fact that it's set-up to work with *user-designed packages.* When I learned about this, I was excited, but I was also somewhat anxious because I felt like it meant I was going to have to learn a bunch of packages now! Thankfully, this is only partly-true. You won't "have to" learn the packages because you're sure to find a handful that you do most of your work with, and you'll remember them well because they are *very* useful.
+
+You've probably heard that...:
+
+1. "R is great for working with data!"
+2. "R makes really pretty pictures!"
+
+Both are true, because of the work put-in by users who've designed fantastic packages. The best news is that these packages were made by the same programmer^[Named: [Hadley Wickham](https://en.wikipedia.org/wiki/Hadley_Wickham)], who bundled them all together into what is famously called the `tidyverse`. So, let's install that now!
+
+```{r tidyverse-inst , warning=F}
+
+install.packages("tidyverse") 
+
+```
+
+Some notes: Normally, you never need to add the line that says `repos = ` part. I need to do this because of the program I am using right now. You **do** need to put the package name in quotes during `install.packages()` because that tells R what to plug-into its package search engine.
+
+Anyway, now that it's installed, let's load the package. 
+
+```{r tidyverse-load }
+
+library(tidyverse) 
+
+```
+
+Look at this; you can see all of the packages that make up the `tidyverse`. The most important packages from `tidyverse` are probably `dplyr` and `ggplot2`. `dplyr` is why point 1. above is true; it puts in place a language for managing data which is very similar to SQL. `ggplot2` is the powerful graphing and plotting package.
+
+`library()` is just the command that says to R "You know that package `tidyverse` I installed? Load that for me, please." 
+
+Let's dig-into some of this data!
+
+## Wrangling comma-separated data from the web
+
+We're going to see how powerful these packages are by pulling the John's Hopkins University COVID-19 data. One of the packages in `tidyverse`-- the `readr` package-- has a very good function to read `.csv` data files, and it can even pull those straight from the web if that's where the file is located.
+
+So, let's turn to the JHU COVID-19 data. I grabbed a link to the raw county-level case data from [their GitHub](https://github.com/CSSEGISandData), let's pull it into our R environment.
+
+```{r data}
+
+covid_cases <- 
+  read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
+
+```
+
+Great; it's loaded, and it even told us the types of variables that it converted the columns into.^[.csv files are just entries separated by commas. R needs to make it into a factor or character variable (to make categorization easy), a numerical variable (also known as a class 'double', which makes math easier), or something like a date-time variable (which makes lots of operations that rely on a time index easier). See https://swcarpentry.github.io/r-novice-inflammation/13-supp-data-structures/ for more info on these types.] Let's actually take a peek at this data.
+
+```{r data-head}
+
+head(covid_cases, 10)
+
+```
+
+The data is there, but it looks like it's in a godawful format where each date is a separate variable and `dplyr` wants to tell us *all about* the column names, which defeats the purpose of cleaning-up the data preview! Such data, where most of the data values are contained in a sprawling number of columns, is called "wide" data. Each of those 160-or-so columns is telling us the exact same thing-- the number of cases. Now is a good time for an aside on "wide" vs. "long" data.
+
+Most scientists/people working with data prefer to have all of the values reflecting the same variable in one single column, and just have other columns contain variables (date, county, state etc.) which help *identify* which case we are looking at in a given row. In other words, have every column be an actual variable. This format is called "long" data, because it tends to have a lot of rows but much fewer columns. 
+
+### Wide vs. Long data
+
+As diligent scientists, and people who aren't psyhopaths, let's now convert this wide data into long data. In Excel, this is called "pivoting," and I'm pretty sure that's what pivot tables are for. Thankfully you'll never need to use pivot tables again because R makes these conversions very easy! Like so...
+
+```{r pivot-longer}
+
+covid_cases_long <- 
+  pivot_longer(data = covid_cases,
+               cols = -c(UID,
+                         iso2,
+                         iso3,
+                         code3,
+                         FIPS,
+                         Admin2,
+                         Province_State,
+                         Country_Region,
+                         Lat,
+                         Long_,
+                         Combined_Key) , # 'cols' will contain every column which is already a variable to our liking
+               names_to = "date" ,  # need to name the variable that will label the column which the datum came from
+                values_to = "confirmed" ) # need to name the variable that our data represents
+
+head(covid_cases_long, 10)
+
+```
+
+Much better! Now, every column represents a meaningful variable. I did notice something that bothered me, though! `... date <chr>, ...` bugs me a lot. Our "date" variable is interpreted by R as just a bunch of writing in each entry. We want R to recognize that it's actually a date variable, though, because we'd like it to respect the ordering that our data comes-in. Put simply, if we want R to obey us when we tell it "I want to know the number of new cases, so please subtract yesterday's cases from today's," then R needs to understand what "yesterday" vs. "today" means. Date variables contain that sense of ordering, and R comes with an amazing package for manipulating dates. That is the `lubridate` package, so go ahead and `install.packages("lubridate")` now if necessary.
+
+```{r lubridating}
+
+library(lubridate)
+covid_cases_long <- 
+  mutate( covid_cases_long , 
+          date = mdy(date) ) # replaces the original date variable!
+
+head(select( covid_cases_long , date), 8)
+```
+
+Perfect, R knows it's a date, and it looks like one too! Behind-the-scenes, here, the `mdy()` function is just pre-emptively telling `lubridate` to look for something resembling a month first, then a day, then a year. Lubridate is powerful, but kinda stupid, and can get confused if we don't prime it with the right ordering. There is one last thing bothering me: A lot of these variables have capital letters in them, or otherwise funky names. Best-practice for clean data dictate that our variables should be all lowercase, and not contain superfluous characters (like the variable currently names "Long_"). 
+
+With that last bit, let's clean the names using the `janitor` package!
+
+```{r janitor-clean-cases}
+
+if(!require(janitor)) install.packages("janitor") # this is a V E R Y useful trick command that i will use a lot
+library(janitor)
+
+covid_cases_long <- clean_names(covid_cases_long)
+
+head(covid_cases_long, 10)
+```
+
+This is exactly what we want. We are ready to start analyzing this data right now, if we want to! Now that we're experts at loading this kind of data and cleaning it, though, I want to show a much quicker and simpler way to do everything I did, all in one chunk of code.
+
+### How I learned to stop worrying and love the pipe
+
+We can chain-together most of these commands that we used to clean that data, using the "pipe" feature (`%>%`) from the `magrittr` package. The great news is, `tidyverse` already installs and loads this package, so we can try this out right-away. Allow me to demonstrate by doing exactly what we did for cases, only with the COVID-19 deaths data:
+
+```{r deaths-load-clean}
+
+covid_deaths <- 
+  read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv")
+
+covid_deaths_long <- 
+  covid_deaths %>% 
+  pivot_longer( cols = -c(UID,
+                          iso2,
+                          iso3,
+                          code3,
+                          FIPS,
+                          Admin2,
+                          Province_State,
+                          Country_Region,
+                          Lat,
+                          Long_,
+                          Combined_Key , 
+                          Population ) , 
+                names_to = "date" , 
+                values_to = "deaths" ) %>%
+  mutate( date = lubridate::mdy(date)) %>%
+  clean_names()
+
+head(covid_deaths_long, 10)
+```
+
+This now-pristine dataset is exactly the same as the previous one, except the variable of interest is deaths vs. cases, and it also includes the population for calculating mortality rates more-easily. You might wonder; "why is this a totally different dataset if only one single variable is different and the rest are all the same?" I have the same thought. Let's make them into one dataset!
+
+```{r merge-case-deaths }
+
+covid_data_df <- 
+  covid_cases_long %>%
+  left_join( covid_deaths_long ) %>% 
+  filter(iso3 == "USA" & iso2 == "US")
+
+```
+
+The `left_join()` command simply tells R to merge the datasets "from left to right," meaning that we want to keep all of the county-day observations from the initial dataset (`covid_cases_long`), and drop any county-day observations that aren't matched to the data inside of the `left_join()` parentheses. For these data, it doesn't matter which order we join them together in, because they are designed to match on all county-day cells. (Try for yourself to test this, or play around using `right_join()`).
+
+Just as another example of doing all of this-- pulling, tidying-up, and cleaning the data using pipes-- all at once, by bringing-in election data from the 2016 elections:
+
+```{r election-data}
+
+election_data <- 
+  read_csv("https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-16/master/2016_US_County_Level_Presidential_Results.csv") %>%
+  rename( "fips" = "combined_fips" ) %>%
+  select(votes_dem, votes_gop, total_votes, fips, state_abbr) %>%
+  mutate( diff = votes_gop-votes_dem ,
+          gop_win = ifelse(diff>0,1,0) , # democrats won if they got more votes in the county
+          size_win = abs(diff)/total_votes ) # how many votes did they win by?
+
+head(election_data, 10)
+```
+
+Looks great!
+
+## Wrangling data from online HTML tables
+
+Another thing I'd like to do is add identifying information on the states our counties are located-in, linking the states name to their 2 letter code and 2-digit FIPS code (FIPS codes are incredibly useful identifiers, google to learn more).^[Random fact: due to privacy the census does not publicly-release data on areas under 100,000 population, which is a LOT of counties. We can now either convert COVID-19 data to the state level, or just use state-level variables, to leverage a lot of awesome census data.] Did you know [there's a government website](https://www.nrcs.usda.gov/wps/portal/nrcs/detail/?cid=nrcs143_013696) with that info? We don't even need to copy-and-paste it, we can pull this table straight from the web! The only thing you need to do outside of R for this is finding the actual HTML table object. [Check lecture 6](https://github.com/uo-ec607/lectures) in the 'readme' of that link to see how to do this. I already know what the HTML object is, so let's begin:
+
+```{r html-names}
+
+if(!require(rvest)) install.packages("rvest") # 'rvest' lets us scour the net for HTML data
+library(rvest)
+
+site = "https://www.nrcs.usda.gov/wps/portal/nrcs/detail/?cid=nrcs143_013696" # quotes important!
+
+state_name_fips = 
+  read_html(site) %>%
+  html_nodes("#detail > table") %>%
+  html_table( fill = F ) %>%
+  bind_rows() %>%
+  clean_names() %>%
+  rename( "state_abbr" = "postal_code" ,
+          "statefip" = "fips" , 
+          "state_name" = "name" ) %>%
+  bind_rows( data.frame( state_name = "District of Columbia" , 
+                         state_abbr = "DC" , 
+                         statefip = 11)) # DC is not a state, but we have that data! let's add her!
+
+```
+
+## Wrangling data from GitHub sources
+
+These tools aren't limited to CSVs or even HTML-- we can pull high-quality data straight from GitHub. This is a game-changer because GitHub has volumes of amazing, useful data if you know how to find and use it. It's even simpler than downloading HTML data, though! Check it out; I have state-level census data on a very wide range of demographic and economic variables, let's pull it:
+
+```{r githubdata }
+
+file_location <-  "https://raw.githubusercontent.com/rcberg/2019-ncov-tracking/master/data/export/acs_state_variables.rds"
+download.file(file_location , 
+              "acs_state_variables.rds" , 
+              method = "curl" )
+acs_state_data <- readRDS("acs_state_variables.rds")
+
+head(acs_state_data,10)
+
+```
+
+Everything went off without a hitch, it seems!
+
+## Merging data from various sources
+
+Now, the point of all that was to learn valuable data management skills-- but I have a much bigger payoff in mind. We spent all this time getting the state identifier info from the HTML code of a website, and the reason we did that is because the election data, ACS, and COVID data all have different state-level identifiers. Now, we have a **crosswalk**-- a data set of different identifiers that can link different forms and levels of data together-- to make one master data set!
+
+```{r master-merge}
+
+
+covid_data_df <- 
+  covid_data_df %>%  
+  rename( "county_name" = "combined_key" ,
+          "state_name" = "province_state" ) %>% 
+  left_join( state_name_fips )
+
+election_data <- 
+  election_data %>% 
+  left_join( state_name_fips )
+
+state_master_data <- 
+  covid_data_df %>%
+  left_join( election_data ) %>%
+  left_join( acs_state_data )
+
+head(state_master_data, 10)
+
+```
+
+Now, we have created a really great, detailed set of data which link coronavirus cases/deaths with state census information *and* 2016 presidential election votes. We can do all sorts of robust analysis with that kind of data. Our effort is futile if we don't save our hard work, however.
+
+By the way, R has an utterly fantastic data format-- `.rds`-- which can compress very large data into tiny files. This is what we'll want to save our data as.^[I have a folder in my working directory called 'data'-- you should, too. It's organized into "raw" data and "export" data, which is data that has been worked-on and modified.]
+
+**After you produce clean data, like we have, you only save it once! Save any changes as different data so that you always maintain the original! This is very important for integrity and making your work re-producible for other scientists.**
+
+```{r saving, eval=F}
+
+saveRDS( state_master_data , "data/raw/covid_df_updated_6-26.rds")
+
+```
