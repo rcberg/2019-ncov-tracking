@@ -1769,7 +1769,7 @@ head(covid_deaths_long, 10)</code></pre>
   rename( &quot;fips&quot; = &quot;combined_fips&quot; ) %&gt;%
   select(votes_dem, votes_gop, total_votes, fips, state_abbr) %&gt;%
   mutate( diff = votes_gop-votes_dem ,
-          gop_win = ifelse(diff&gt;0,1,0) , # democrats won if they got more votes in the county
+          gop_win = ifelse(diff&gt;0,1,0) , # republicans won if they got more votes in the county
           size_win = abs(diff)/total_votes ) # how many votes did they win by?</code></pre>
 <pre><code>## Warning: Missing column names filled in: &#39;X1&#39; [1]</code></pre>
 <pre><code>## Parsed with column specification:
