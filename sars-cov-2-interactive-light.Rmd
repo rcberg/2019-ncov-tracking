@@ -1,0 +1,136 @@
+---
+title: "COVID-19 Global Dashboard"
+author: "Chris Berg"
+date: <br>`r format(Sys.Date(), '%d %B %Y') `
+output: 
+  html_document:
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load( tidyverse ,
+                ggplot2  ,
+                lubridate,
+                sf ,
+                maps ,
+                leaflet, 
+                hrbrthemes , 
+                plotly )
+
+world_data = 
+  readRDS("data/export/worldwide_data.rds") %>%
+  filter( province_state != "Diamond Princess") %>%
+  pivot_wider( names_from = type , 
+               values_from = cases ) %>%
+  rename(cases = `Confirmed Cases` , 
+         deaths = Death ) %>%
+  mutate( cfr = deaths/cases )
+
+```
+
+The data for this dashboard comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub repo](https://github.com/CSSEGISandData/COVID-19) which is updated daily. Updates to this page occur around 11.30pm, when JHU updates their data.
+
+## Map of COVID-19, Today
+
+```{r worldmap-data, include=F}
+
+world_today = 
+  world_data %>%
+  filter( date == ymd(max(date)))
+
+world  = 
+  st_as_sf(map("world", plot = FALSE, fill = TRUE)) %>% 
+  st_transform( crs = 4326 )
+
+proj_crs = st_crs(world)
+
+world_sf = 
+  world_today %>% 
+  st_as_sf( coords = c("long","lat") ,
+            crs = 4326 )
+
+```
+
+Below is a fully-interactive map which highlights the current recorded cases, deaths, and case fatality ratios of COVID-19 (a.k.a. coronavirus or 2019-novel coronavirus) within countries. Click-and-drag to move around the map. Larger red circles indicate a greater number of Coronavirus cases in that country. Clicking on any of the dots will pull-up the country name, along with its headline COVID-19 stats. 
+
+```{r worldmap-int, echo=F , fig.align='center'}
+
+world_sf %>% 
+  filter( cases > 0 ) %>%
+  st_transform(crs = "epsg:4326") %>%
+  leaflet(width = "100%") %>% 
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addCircleMarkers( radius = ~log(cases) , 
+                    popup = ~paste0(paste(province_state, country_region , sep = ", ") , 
+                                    "<br>", "Confirmed Cases: ", prettyNum(cases, big.mark=",") , 
+                                    "<br>", "Deaths: " , prettyNum(deaths, big.mark=",") , 
+                                    "<br>", "Case fatality ratio: " , prettyNum(round(cfr,3))),
+                    color = 'red' , 
+                    stroke = F ) 
+
+```
+
+
+## COVID-19 infection and mortality trends
+
+```{r data-plot, include=F}
+
+country_df = 
+  world_data %>%
+  group_by( country_region , date) %>%
+  summarise( cases = sum(cases) , 
+             deaths = sum(deaths) ) %>%
+  mutate( new_cases = cases - dplyr::lag(cases, order_by = date) ,
+          new_deaths = deaths - dplyr::lag(deaths, order_by = date) , 
+          avg_new_cases = 
+            new_cases +
+            dplyr::lag(new_cases, order_by = date, n = 1) + 
+            dplyr::lag(new_cases, order_by = date, n = 2) +
+            dplyr::lag(new_cases, order_by = date, n = 3) + 
+            dplyr::lag(new_cases, order_by = date, n = 4) + 
+            dplyr::lag(new_cases, order_by = date, n = 5) + 
+            dplyr::lag(new_cases, order_by = date, n = 6)  
+          )
+
+cases_plot = 
+  country_df %>%
+  ggplot( ) + 
+  geom_line( aes( x = date , y = avg_new_cases , color = country_region ) ) + 
+  labs( title = "New COVID-19 cases worldwide" , 
+        subtitle = "7-day average",
+        x = "Date" , 
+        y = "New Reported COVID-19 Cases" , 
+        color = "Country" ) +
+  theme_ipsum_rc( axis_title_size = 15 )
+
+deaths_plot = 
+  country_df %>%
+  ggplot( ) + 
+  geom_line( aes( x = date , y = deaths , color = country_region ) ) + 
+  labs( title = "COVID-19 mortality worldwide" , 
+        x = "Date" , 
+        y = "Reported COVID-19 Deaths" , 
+        color = "Country" ) +
+  theme_ipsum_rc( axis_title_size = 15 )
+
+```
+
+
+The graphs below show nationwide historical trends in COVID-19 spread, offering additional context to the snapshot above. To pull-up the graph for one specific country, double-click the country name in the legend. Click (once) on any additional countries to compare their trends. New case trends are computed as the [7-day average](https://en.wikipedia.org/wiki/Moving_average#Simple_moving_average) of new cases.
+
+```{r int-plot, echo=FALSE, dpi = 120 }
+
+plotly::ggplotly( cases_plot
+                  )
+
+```
+
+```{r int-deaths-plot, echo=FALSE, dpi = 120 }
+
+plotly::ggplotly( deaths_plot
+                  )
+
+```
