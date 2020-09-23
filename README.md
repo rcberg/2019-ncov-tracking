@@ -1,6 +1,6 @@
 # 2019-nCoV Tracking
 
-This repository hosts the COVID-19 dashboard
+This repository is a resource to track the COVID-19 pandemic. Below are dashboards which visualize the current available data; explore the repo. to find the data and code used to produce them.
 
 ## Dashboards
 ### Global
