@@ -1,10 +1,10 @@
 ---
-title: "COVID-19 Around the World"
+title: "COVID-19 Global Dashboard"
 author: "Chris Berg"
 date: <br>`r format(Sys.Date(), '%d %B %Y') `
 output: 
   html_document:
-    theme: yeti
+    theme: darkly
 ---
 
 ```{r setup, include=FALSE}
@@ -31,10 +31,9 @@ world_data =
 
 ```
 
-The data used here comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub repo](https://github.com/CSSEGISandData/COVID-19) which is updated daily. Updates to this page will occur as soon as they can after the JHU data gets updated.
+The data for this dashboard comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub repo](https://github.com/CSSEGISandData/COVID-19) which is updated daily. Updates to this page occur around 11.30pm, when JHU updates their data.
 
-## Interactive world map of COVID-19
-
+## Map of COVID-19, Today
 
 ```{r worldmap-data, include=F}
 
@@ -53,19 +52,15 @@ world_sf =
   st_as_sf( coords = c("long","lat") ,
             crs = 4326 )
 
-gr = 
-  st_graticule(lat = c(-89.9,seq(-80,80,20),89.9) , 
-               crs = 4326)
-
 ```
 
-Below is an interactive world map, highlighting the cases, deaths, and case fatality ratios of COVID-19 (a.k.a. coronavirus or novel coronavirus ) within countries and provinces. Larger red circles indicate a greater number of Coronavirus cases in the area, and clicking on the red circles gives the name of the area it represents, their number of cases and deaths which have been confirmed, as well as the "case fatality ratio" (ratio of deaths to confirmed cases). *Tip: Use the drag and zoom features to select and enlarge regions of the map.*
+Below is a fully-interactive map which highlights the current recorded cases, deaths, and case fatality ratios of COVID-19 (a.k.a. coronavirus or 2019-novel coronavirus) within countries. Click-and-drag to move around the map. Larger red circles indicate a greater number of Coronavirus cases in that country. Clicking on any of the dots will pull-up the country name, along with its headline COVID-19 stats. 
 
 ```{r worldmap-int, echo=F , fig.align='center'}
 
 world_sf %>% 
   filter( cases > 0 ) %>%
-  st_transform(crs = "+init=epsg:4326") %>%
+  st_transform(crs = "epsg:4326") %>%
   leaflet(width = "100%") %>% 
   addProviderTiles(provider = "CartoDB.Positron") %>%
   addCircleMarkers( radius = ~log(cases) , 
@@ -79,7 +74,7 @@ world_sf %>%
 ```
 
 
-## COVID-19 cases and deaths over time
+## COVID-19 infection and mortality trends
 
 ```{r data-plot, include=F}
 
@@ -87,32 +82,44 @@ country_df =
   world_data %>%
   group_by( country_region , date) %>%
   summarise( cases = sum(cases) , 
-             deaths = sum(deaths) )
-
+             deaths = sum(deaths) ) %>%
+  mutate( new_cases = cases - dplyr::lag(cases, order_by = date) ,
+          new_deaths = deaths - dplyr::lag(deaths, order_by = date) , 
+          avg_new_cases = 
+            new_cases +
+            dplyr::lag(new_cases, order_by = date, n = 1) + 
+            dplyr::lag(new_cases, order_by = date, n = 2) +
+            dplyr::lag(new_cases, order_by = date, n = 3) + 
+            dplyr::lag(new_cases, order_by = date, n = 4) + 
+            dplyr::lag(new_cases, order_by = date, n = 5) + 
+            dplyr::lag(new_cases, order_by = date, n = 6)  
+          )
 
 cases_plot = 
   country_df %>%
   ggplot( ) + 
-  geom_line( aes( x = date , y = cases , color = country_region ) ) + 
-  labs( title = "COVID-19 cases worldwide" , 
+  geom_line( aes( x = date , y = avg_new_cases , color = country_region ) ) + 
+  labs( title = "New COVID-19 cases worldwide" , 
+        subtitle = "7-day average",
         x = "Date" , 
-        y = " Confirmed Cases" , 
+        y = "New Reported COVID-19 Cases" , 
         color = "Country" ) +
-  theme_ipsum_rc( axis_title_size = 15 )
+  theme_ft_rc( axis_title_size = 15 )
 
 deaths_plot = 
   country_df %>%
   ggplot( ) + 
   geom_line( aes( x = date , y = deaths , color = country_region ) ) + 
-  labs( title = "COVID-19 deaths worldwide" , 
+  labs( title = "COVID-19 mortality worldwide" , 
         x = "Date" , 
-        y = " Deaths" , 
+        y = "Reported COVID-19 Deaths" , 
         color = "Country" ) +
-  theme_ipsum_rc( axis_title_size = 15 )
+  theme_ft_rc( axis_title_size = 15 )
 
 ```
 
-The novel coronavirus has overwhelmed nations with exponential growth. Below, interactive graphs show these exponential growth curves in each country. Double-click the country name in the legend to the right of the chart in order to single-out that country's growth curve. Any number of countries are able to be selected and compared.
+
+The graphs below show nationwide historical trends in COVID-19 spread, offering additional context to the snapshot above. To pull-up the graph for one specific country, double-click the country name in the legend. Click (once) on any additional countries to compare their trends. New case trends are computed as the [7-day average](https://en.wikipedia.org/wiki/Moving_average#Simple_moving_average) of new cases.
 
 ```{r int-plot, echo=FALSE, dpi = 120 }
 
