@@ -6,6 +6,9 @@ This repository is a resource to track the COVID-19 pandemic. Below are dashboar
 ### Global
 Global COVID-19 Dashboard: ([Night mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive.html)/[Light mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-light.html))
 
+### United States
+County-level COVID-19 Dashboard: ([Night mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-uscounties.html)/[Light mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-uscounties-light.html))
+
 ## Epidemiology simulator
 
 [Click here](https://github.com/rcberg/2019-ncov-tracking/tree/master/econepimodel) to access a disease contagion simulation I made, including a brief explainer.
