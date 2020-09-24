@@ -9,6 +9,8 @@ Global COVID-19 Dashboard: ([Night mode](https://raw.githack.com/rcberg/2019-nco
 ### United States
 County-level COVID-19 Dashboard: ([Night mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-uscounties.html)/[Light mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-uscounties-light.html))
 
+State-level COVID-19 testing, hospitalization, and hospital capacity Dashboard: ([Night mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-testing.html)/[Light mode](https://raw.githack.com/rcberg/2019-ncov-tracking/master/sars-cov-2-interactive-testing-light.html))
+
 ## Epidemiology simulator
 
 [Click here](https://github.com/rcberg/2019-ncov-tracking/tree/master/econepimodel) to access a disease contagion simulation I made, including a brief explainer.
