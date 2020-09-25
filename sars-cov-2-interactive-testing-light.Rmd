@@ -131,7 +131,7 @@ Some states fail to report data on critical cases, cases requiring a ventilator,
 
 ```{r trend-plot-construct}
 
-col_pal_hosp <- colorNumeric(palette = "magma", domain = log(1+us_states$hospitalized_currently, base=10) )
+col_pal_hosp <- colorNumeric(palette = "plasma", domain = log(1+us_states$hospitalized_currently, base=10) )
 
 states_cap_plot <-  
   us_states %>%
