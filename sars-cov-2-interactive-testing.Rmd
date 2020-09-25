@@ -1,75 +1,235 @@
 ---
-title: "COVID Testing and Reliability"
+title: "State COVID-19 Testing and Hospitalization Dashboard"
 author: "Chris Berg"
-date: <br>`r format(Sys.Date(), '%d %B %Y') `
+date: <br>`r format(Sys.Date() , "%d %B %Y")`
 output: 
   html_document:
-    theme: yeti
+    theme: darkly
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F,
+                      warning = F)
 
 if(!require(pacman)) install.packages("pacman")
-p_load(tidyverse, 
-       tigris,
-       sf,
-       leaflet)
+pacman::p_load( tidyverse ,  
+                janitor ,
+                sf , 
+                lubridate ,
+                tigris ,
+                leaflet ,
+                RColorBrewer ,
+                hrbrthemes
+                )
 
-
-```
-
-## Testing, and the Negative Test Share
-
-```{r datasets, include=F}
 options(tigris_class = "sf")
-us_states_map = 
-  tigris::states(cb = T ) 
 
+aid_capacity_state <- 
+  read_csv("https://healthdata.gov/node/3281106/download") %>% 
+  filter( state != "CW" & state %in% c(state.abb,"DC")) %>% 
+  clean_names() %>% 
+  mutate( date = collection_date ) %>%
+  select(-c(collection_date, icu_beds_occupied_estimated:percentage_ul)) %>%
+  arrange(desc(date),state)
 
-state_test_data = readRDS("data/export/states_testing_data.rds")
+state_daily_df <- 
+  read_csv("https://api.covidtracking.com/v1/states/daily.csv") %>%
+  filter( state %in% c(state.abb, "DC") ) %>%
+  clean_names() %>%
+  mutate( crit_care_currently = if_else( is.na(in_icu_currently) == T , 
+                                        ifelse(is.na(on_ventilator_currently)==T,
+                                               NA,
+                                               on_ventilator_currently),
+                                        in_icu_currently) ,
+          date = ymd(date)) %>%
+  select( date,
+          state, 
+          fips,
+          positive,
+          negative, 
+          recovered,
+          hospitalized_currently ,
+          crit_care_currently ,
+          in_icu_currently , 
+          on_ventilator_currently) %>%
+  left_join(aid_capacity_state) %>%
+  group_by(state) %>%
+  mutate( GEOID = fips , 
+          fips = as.numeric(fips) ,
+          pos_rate = 100*(positive/(positive+negative)) ,
+          crit_rate = 100*(crit_care_currently/hospitalized_currently) , 
+          vent_rate = 100*(on_ventilator_currently/hospitalized_currently) , 
+          total_icu_beds_lag = dplyr::lag(total_icu_beds, order_by = date ) ,
+          crit_capacity_use = ifelse(is.na(total_icu_beds) ,
+                                      ifelse(is.na(total_icu_beds_lag),
+                                              NA,
+                                              100*(crit_care_currently/total_icu_beds_lag)
+                                              ) ,
+                                      100*(crit_care_currently/total_icu_beds)
+                                      )
+  ) %>%
+  ungroup()
 
+recent_date <- max(state_daily_df$date)
 
-state_test_map_df = 
-  left_join( state_test_data , 
-             us_states_map ) %>%
+state_map <- tigris::states()
+
+most_recent_data <- 
+  filter( state_daily_df , date == recent_date )
+
+us_states <- 
+  left_join(most_recent_data, state_map) %>%
   st_as_sf()
-
 ```
 
-A major concern for using data to inform COVID-19 health policy has been measuring how many "actual" cases exist somewhere. If health workers are testing only those who are likeliest to have COVID, they're likely under-counting the many who have the virus but who are asymptomatic or otherwise aren't severely symptomatic. For this reason, a higher share of negative test results is used as a rule-of-thumb to gauge whether areas are doing a good job of going above and beyond to pick up even the seemingly-less-likely cases which are nonetheless positive. 
+Testing and hospitalization data used in this dashboard comes from the [COVID Tracking Project](https://covidtracking.com/data), and data on available ICU beds comes from the [Department of Health and Human Services](https://healthdata.gov/dataset/covid-19-estimated-patient-impact-and-hospital-capacity-state/).
 
-Below is an interactive map of the US states, showing how many tests have been performed in the state, and (for reasons given above) how many of those tests came back negative. Since states might not report *all* tests (see source link at the bottom for a deeper explanation) they are each assigned a letter grade based on how complete is their reporting of positive, negative, and commercial laboratory results; this grade is also included in the states' info.
+## Map of current US COVID-19 testing efforts
 
-```{r plot, echo=F}
+Below is a fully-interactive map of state-level COVID-19 test results. Click-and-drag to move the map, and click on any of the states to pull-up their COVID-19 testing data. The "hot spots" (lighter colors) indicate a higher percentage of positive COVID-19 tests. The percentage of positive test results-- or the "positivity rate"-- is used as a measure for how aggressive or widespread testing efforts are in a state, relative to the severity of their COVID-19 outbreak. 
 
-col_pal_negrate <- colorNumeric(palette = "viridis", domain = state_test_map_df$neg_rate, n = 10)
+A higher positivity rate often suggests that testing efforts have been retrospective, only detecting cases after individuals feel sick. States with aggressive, faster, and lower-cost (to the patient) testing campaigns tend to have lower positivity rates.
 
-neg_rate_plot = 
-  state_test_map_df %>%
-  st_transform(crs = "+init=epsg:4326") %>%
+```{r states-map}
+col_pal_pos <- colorNumeric(palette = "viridis", domain = us_states$pos_rate )
+
+states_pos_plot <-  
+  us_states %>%
+  st_transform(crs = "epsg:4326") %>%
   leaflet(width = "100%") %>% 
   addProviderTiles(provider = "CartoDB.Positron") %>%
   addPolygons(
     popup = ~paste0(NAME, 
-                    "<br>", "Total tests: ", prettyNum(total_results, big.mark=",") , 
-                    "<br>", "Share of negative results: ", prettyNum(round(neg_rate,2), big.mark=",") , 
-                    "<br>" , "Data reliability grade: ", grade),
+                    "<br>", "Tests: ", (positive+negative), 
+                    "<br>", "Cases: ", positive, 
+                    "<br>", "Positive Tests (%): ", round(pos_rate, 1), 
+                    "<br>", "In hospital: ", hospitalized_currently),
     stroke = FALSE,
     smoothFactor = 0,
     fillOpacity = 0.7,
-    color = ~col_pal_negrate(neg_rate)
+    color = ~col_pal_pos(pos_rate)
   ) %>%
   addLegend(
     "bottomright", 
-    pal = col_pal_negrate, 
-    values = ~neg_rate,
-    title = "Share of Negative Results",
+    pal = col_pal_pos, 
+    values = ~pos_rate,
+    title = "Positive Test Rate",
     opacity = 1
   ) %>% 
   setView(lat=40, lng=-95, zoom=3.5 )
 
-neg_rate_plot
+states_pos_plot
 ```
 
-*Data courtesy of [The COVID Tracking Project](https://covidtracking.com/)*
+## State COVID-19 severity, hospitalization, and capacity
+
+*Note: Overall state-level figures may conceal how severe and/or strained the COVID-19 situation is in many small counties. Data on total ICU beds and COVID-19 hospitalizations are, unfortunately, not widely-available at levels below the state. Please interpret responsibly!*
+
+The map below shows current COVID-19 hospitalizations in each state, on a [logarithmic scale](https://blog.datawrapper.de/weeklychart-logscale/). Clicking on a state will show data on severity, as well as how much strain is being put on hospitals' critical care capacity. Severity is measured in terms of critical cases, i.e. cases that require intensive care and/or a ventilator. Strain is measured by the percentage of estimated ICU beds in a given state that are required by COVID-19 patients.
+
+Some states fail to report data on critical cases, cases requiring a ventilator, or sometimes both. Those states may not appear in some of the graphs. The map pop-up will show which states do not report such information.
+
+```{r trend-plot-construct}
+
+col_pal_hosp <- colorNumeric(palette = "magma", domain = log(1+us_states$hospitalized_currently, base=10) )
+
+states_cap_plot <-  
+  us_states %>%
+  st_transform(crs = "epsg:4326") %>%
+  leaflet(width = "100%") %>% 
+  addProviderTiles(provider = "CartoDB.Positron") %>%
+  addPolygons(
+    popup = ~paste0(NAME, 
+                    "<br>", "Hospital Cases: ", hospitalized_currently,
+                    "<br>", "Critical Cases: ", ifelse(is.na(crit_care_currently),
+                                                       "Not Reported",
+                                                       crit_care_currently),
+                    "<br>", "On Ventilator: ", ifelse(is.na(on_ventilator_currently),
+                                                      "Not Reported",
+                                                      on_ventilator_currently) , 
+                    "<br>", "ICU Strain (% of beds): ", ifelse(is.na(round(100*(crit_care_currently/hospitalized_currently),1)),
+                                                   "Not Reported",
+                                                   round(100*(crit_care_currently/hospitalized_currently),1))
+                    ),
+    stroke = FALSE,
+    smoothFactor = 0,
+    fillOpacity = 0.7,
+    color = ~col_pal_hosp(log(1+us_states$hospitalized_currently, base=10))
+  ) %>%
+  addLegend(
+    "bottomright", 
+    pal = col_pal_hosp, 
+    values = ~log(1+us_states$hospitalized_currently, base=10),
+    title = "COVID-19 hospitalization <br> (Log. Scale)",
+    opacity = 1
+  ) %>% 
+  setView(lat=40, lng=-95, zoom=3.5 )
+
+hospital_plot <- 
+  state_daily_df %>%
+  filter( date > recent_date-months(3)) %>%
+  ggplot( aes( x = date , y = hospitalized_currently, color = state) ) + 
+  geom_line() + 
+  scale_y_continuous( trans = 'log10')+
+  labs( title = "Trends in COVID-19 hospitalization" , 
+        y = "Currently hospitalized" , 
+        x = "Date" , 
+        color = "State") +
+  theme_ft_rc(axis_title_size = 15)
+
+critical_plot <- 
+  state_daily_df %>%
+  filter( date > recent_date-months(3)) %>%
+  ggplot( aes( x = date , y = crit_rate, color = state) ) + 
+  geom_line() + 
+  scale_y_continuous( labels = scales::percent_format( scale = 1 ) )+
+  labs( title = "Trends in critical cases" , 
+        y = "% of Hospital Cases" , 
+        x = "Date" , 
+        color = "State") +
+  theme_ft_rc(axis_title_size = 15)
+
+capacity_plot <- 
+  state_daily_df %>%
+  filter( date > recent_date-months(1)) %>%
+  ggplot( aes( x = date , y = crit_capacity_use, color = state) ) + 
+  geom_line() + 
+  scale_y_continuous( labels = scales::percent_format( scale = 1 ) )+
+  labs( title = "COVID-19 ICU bed utilization" , 
+        y = "% of (est.) Total ICU Beds" , 
+        x = "Date" , 
+        color = "State") +
+  theme_ft_rc(axis_title_size = 15)
+
+vent_plot <- 
+  state_daily_df %>%
+  filter( date > recent_date-months(3)) %>%
+  ggplot( aes( x = date , y = vent_rate, color = state) ) + 
+  geom_line() + 
+  scale_y_continuous( labels = scales::percent_format( scale = 1 ) )+
+  labs( title = "Trends in ventilator use" , 
+        y = "% of Hospital Cases" , 
+        x = "Date" , 
+        color = "State") +
+  theme_ft_rc(axis_title_size = 15)
+
+states_cap_plot
+```
+
+### State trends in severity over time
+
+```{r trend-plots}
+
+plotly::ggplotly( hospital_plot )
+plotly::ggplotly( critical_plot )
+plotly::ggplotly( vent_plot )
+```
+
+### State trends in capacity over time
+
+Given how contagious and potentially-severe COVID-19 is, a persistent worry is that outbreaks will spread fast enough that the number of severe cases exceeds the capacity of local hospitals. This possibility is the motivate for all "flatten the curve" campaigns, including social distancing policies and restaurant/bar regulations. The graph below shows trends in the share of ICU beds (or ventilators, in states that report them but do not report ICU cases) occupied by COVID-19 patients.
+
+```{r capacity-plot}
+
+plotly::ggplotly( capacity_plot)
+```

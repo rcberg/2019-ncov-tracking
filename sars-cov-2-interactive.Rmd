@@ -14,21 +14,36 @@ if(!require(pacman)) install.packages("pacman")
 pacman::p_load( tidyverse ,
                 ggplot2  ,
                 lubridate,
+                janitor,
                 sf ,
                 maps ,
                 leaflet, 
                 hrbrthemes , 
                 plotly )
 
-world_data = 
-  readRDS("data/export/worldwide_data.rds") %>%
-  filter( province_state != "Diamond Princess") %>%
-  pivot_wider( names_from = type , 
-               values_from = cases ) %>%
-  rename(cases = `Confirmed Cases` , 
-         deaths = Death ) %>%
-  mutate( cfr = deaths/cases )
+cases_world = 
+  read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv") %>%
+  pivot_longer( -c("Province/State":"Long") , 
+                names_to = "date" , 
+                values_to = "cases" ) %>%
+  mutate( date = lubridate::mdy(date) ) %>%
+  clean_names()
 
+deaths_world = read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv") %>%
+  pivot_longer( -c("Province/State":"Long") , 
+                names_to = "date" , 
+                values_to = "deaths" ) %>%
+  mutate( date = lubridate::mdy(date) ) %>%
+  clean_names()
+
+world_daily_df = 
+  cases_world %>%
+  merge( deaths_world ) %>% 
+  mutate(province_state = replace_na(province_state , "Nationwide") ) %>%
+  arrange( country_region ,
+           desc(date) )
+
+recent_date <- max(world_daily_df$date)
 ```
 
 The data for this dashboard comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub repo](https://github.com/CSSEGISandData/COVID-19) which is updated daily. Updates to this page occur around 11.30pm, when JHU updates their data.
@@ -38,8 +53,9 @@ The data for this dashboard comes from the [Johns Hopkins University Center for 
 ```{r worldmap-data, include=F}
 
 world_today = 
-  world_data %>%
-  filter( date == ymd(max(date)))
+  world_daily_df %>%
+  filter( date == recent_date ) %>%
+  mutate( cfr = deaths/cases )
 
 world  = 
   st_as_sf(map("world", plot = FALSE, fill = TRUE)) %>% 
@@ -79,20 +95,20 @@ world_sf %>%
 ```{r data-plot, include=F}
 
 country_df = 
-  world_data %>%
+  world_daily_df %>%
   group_by( country_region , date) %>%
   summarise( cases = sum(cases) , 
              deaths = sum(deaths) ) %>%
   mutate( new_cases = cases - dplyr::lag(cases, order_by = date) ,
           new_deaths = deaths - dplyr::lag(deaths, order_by = date) , 
           avg_new_cases = 
-            new_cases +
+            (1/7)*( new_cases +
             dplyr::lag(new_cases, order_by = date, n = 1) + 
             dplyr::lag(new_cases, order_by = date, n = 2) +
             dplyr::lag(new_cases, order_by = date, n = 3) + 
             dplyr::lag(new_cases, order_by = date, n = 4) + 
             dplyr::lag(new_cases, order_by = date, n = 5) + 
-            dplyr::lag(new_cases, order_by = date, n = 6)  
+            dplyr::lag(new_cases, order_by = date, n = 6)  )
           )
 
 cases_plot = 

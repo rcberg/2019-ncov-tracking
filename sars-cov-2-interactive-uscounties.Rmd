@@ -1,95 +1,120 @@
 ---
-title: "COVID-19 among US counties"
+title: "COVID-19 US County Dashboard"
 author: "Chris Berg"
 date: <br>`r format(Sys.Date() , "%d %B %Y")`
 output: 
   html_document:
-    theme: yeti
+    theme: darkly
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = F)
 
 if(!require(pacman)) install.packages("pacman")
 pacman::p_load( tidyverse ,  
+                janitor ,
                 sf , 
                 lubridate ,
                 tigris ,
                 leaflet ,
-                RColorBrewer )
+                RColorBrewer 
+                )
 
-recent_date = Sys.Date()-days(1)
+cases_us <- 
+  read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv") %>%
+  select(-(UID:code3)) %>%
+  pivot_longer( cols = -(FIPS:Combined_Key) , names_to = "date" , values_to = "cases") %>%
+  mutate(date = lubridate::mdy(date) ) %>%
+  clean_names()
 
+deaths_us <- 
+  read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv") %>%
+  select(-(UID:code3)) %>%
+  pivot_longer( cols = -(FIPS:Population) , names_to = "date" , values_to = "deaths") %>%
+  mutate(date = lubridate::mdy(date) ) %>%
+  clean_names()
+
+us_daily_data <- 
+  cases_us %>% 
+  merge( deaths_us ) %>%
+  group_by(fips) %>%
+  mutate( new_cases = cases - dplyr::lag(cases, order_by = date) ,
+          avg_new_cases = 
+            (new_cases + 
+            dplyr::lag(new_cases, order_by = date, n = 1) + 
+            dplyr::lag(new_cases, order_by = date, n = 2) + 
+            dplyr::lag(new_cases, order_by = date, n = 3) + 
+            dplyr::lag(new_cases, order_by = date, n = 4) + 
+            dplyr::lag(new_cases, order_by = date, n = 5) + 
+            dplyr::lag(new_cases, order_by = date, n = 6))*(1/7) ,
+          peak_new_cases = max(new_cases, na.rm = T) 
+          ) %>%
+  ungroup()
+
+recent_date <- max(us_daily_data$date)
 ```
+The data for this dashboard comes from the [Johns Hopkins University Center for Systems Science and Engineering GitHub](https://github.com/CSSEGISandData/COVID-19) repo which is updated daily. Updates to this page occur around 11.30pm, when JHU updates their data.
 
-## US counties
+## Map of current COVID-19 hotspots in the United States
 
 ```{r datasets, include=F}
-
 options(tigris_class = "sf")
-us_counties_map = 
-  tigris::counties(cb = T )  %>%
-  mutate( GEOID = recode(GEOID ,
-                         "36005" = "36061" ,  
-                         "36047" = "36061" , 
-                         "36081" = "36061" , 
-                         "36085" = "36061" ) 
-          )
 
-us_counties_map$NAME[which(us_counties_map$GEOID == "36061")] = "New York"
+us_counties_map = 
+  tigris::counties(cb = T )
 
 most_recent_data = 
-  readRDS( paste0("data/export/us-county-data-updated-" , recent_date , ".rds" ,sep = "")
-  ) %>%
-  filter( last_update == recent_date & fips < 60000 ) %>%
+  us_daily_data %>%
+  filter( date == recent_date & fips < 60000 ) %>%
   mutate( GEOID = ifelse( fips < 10000 , 
                           paste(0,fips,sep="") , 
                           fips ) ,
-          cfr = deaths/confirmed
+          cfr = deaths/cases
           ) %>%
-  select(GEOID , confirmed, deaths , cfr)
+  select(GEOID , cases, deaths , cfr, new_cases , avg_new_cases, peak_new_cases )
 
 
 us_counties = 
-  left_join( most_recent_data , us_counties_map ) %>%
+  merge( most_recent_data , us_counties_map ) %>%
   st_as_sf()
 
 ```
 
-The map below uses comprehensive public data on COVID-19 cases and deaths among the United States counties. The map is fully-interactive; you can zoom, pan, and click on the US counties to see information on their confirmed case counts, death counts, and their *case fatality ratio* (the ratio of deaths to confirmed cases).
+Below is a fully-interactive map of county-level COVID-19 cases and deaths in the United States. Click-and-drag to move the map, and click on any of the counties to pull-up their COVID-19 data. The hot spots on the map show counties with rising COVID-19 cases (displayed on a logarithmic or "log" scale, [click here](https://blog.datawrapper.de/weeklychart-logscale/) for more info.).
 
 
 Updated as of `r format(Sys.Date() , "%d %B %Y")`.
 
 
-## Confirmed Coronavirus cases and deaths in US counties
-
-
 ```{r casesmap, echo=FALSE}
+dom_min <- ifelse(min(us_counties$avg_new_cases)<0,
+                  abs(floor(min(us_counties$avg_new_cases))),
+                  1)
 
-
-col_pal <- colorNumeric(palette = "YlOrRd", domain = log(1+us_counties$confirmed), n = 10)
+col_pal <- colorNumeric(palette = "YlOrRd", domain = log(dom_min+us_counties$avg_new_cases) )
 
 county_plot = 
   us_counties %>%
-  st_transform(crs = "+init=epsg:4326") %>%
+  st_transform(crs = "epsg:4326") %>%
   leaflet(width = "100%") %>% 
   addProviderTiles(provider = "CartoDB.Positron") %>%
   addPolygons(
     popup = ~paste0(NAME, 
-                    "<br>", "Confirmed cases: ", prettyNum(confirmed, big.mark=","), 
+                    "<br>", "New cases (avg.): ", prettyNum(floor(avg_new_cases), big.mark=","), 
+                    "<br>", "Confirmed cases: ", prettyNum(cases, big.mark=","), 
                     "<br>", "Deaths: ", prettyNum(deaths, big.mark=",") , 
                     "<br>" , "Case fatality ratio: ", prettyNum(round(cfr,3), big.mark=",") ),
     stroke = FALSE,
     smoothFactor = 0,
     fillOpacity = 0.7,
-    color = ~col_pal(log(1+confirmed))
+    color = ~col_pal(log(dom_min+avg_new_cases))
   ) %>%
   addLegend(
     "bottomright", 
     pal = col_pal, 
-    values = ~log(1+confirmed),
-    title = "Confirmed Cases (Logarithm)",
+    values = ~log(dom_min+avg_new_cases),
+    title = "New Cases <br> (Log. Scale)",
     opacity = 1
   ) %>% 
   setView(lat=40, lng=-95, zoom=3.5 )
@@ -101,7 +126,7 @@ county_plot
 
 ## Distribution of current case fatality ratios
 
-Different counties have different proportions of confirmed cases which have died. This can be due to not testing enough, and so only picking-up the most severe cases which are most-likely to end in fatality, but this is only one of many causes for the variation we see. Below is the entire distribution of case fatality ratios that we see today among US counties.
+The case fatality ratio (CFR) is the ratio of disease mortality to the number of reported cases. Its simplicity and ease of calculation makes it a popular measure of the severity of an outbreak. Areas can have different CFRs for many reasons; differences in healthcare capacity or quality, differences in how aggressively areas test for the disease, and demographic differences, among others. Below is a plot showing the county-level CFR distribution for the United States.
 
 ```{r histogram, echo=F, warning=F, dpi=300}
 library(hrbrthemes)
@@ -112,13 +137,13 @@ library(hrbrthemes)
   geom_histogram( aes( x = cfr) , 
                   fill = "#F8766D" , 
                   color = "black" , 
-                  binwidth = 0.02 , 
+                  binwidth = 0.01 , 
                   boundary = 0 ) + 
   labs( title = "Case fatality ratio among counties reporting deaths" , 
         x = "Case fatality ratio" , 
         y = "Number of counties") +
   scale_x_continuous( breaks = pretty(most_recent_data$cfr , n = 10)  ) +
-  theme_ipsum_rc( axis_title_size = 12 ,
+  theme_ft_rc( axis_title_size = 12 ,
                   plot_title_size = 15)
 
 ```
