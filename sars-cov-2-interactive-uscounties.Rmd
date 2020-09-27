@@ -40,14 +40,15 @@ us_daily_data <-
   merge( deaths_us ) %>%
   group_by(fips) %>%
   mutate( new_cases = cases - dplyr::lag(cases, order_by = date) ,
+          new_case_noneg = pmax(0,new_cases) ,
           avg_new_cases = 
-            (new_cases + 
-            dplyr::lag(new_cases, order_by = date, n = 1) + 
-            dplyr::lag(new_cases, order_by = date, n = 2) + 
-            dplyr::lag(new_cases, order_by = date, n = 3) + 
-            dplyr::lag(new_cases, order_by = date, n = 4) + 
-            dplyr::lag(new_cases, order_by = date, n = 5) + 
-            dplyr::lag(new_cases, order_by = date, n = 6))*(1/7) ,
+           (new_case_noneg + 
+                   dplyr::lag(new_case_noneg, order_by = date, n = 1) + 
+                   dplyr::lag(new_case_noneg, order_by = date, n = 2) + 
+                   dplyr::lag(new_case_noneg, order_by = date, n = 3) + 
+                   dplyr::lag(new_case_noneg, order_by = date, n = 4) + 
+                   dplyr::lag(new_case_noneg, order_by = date, n = 5) + 
+                   dplyr::lag(new_case_noneg, order_by = date, n = 6))*(1/7),
           peak_new_cases = max(new_cases, na.rm = T) 
           ) %>%
   ungroup()
@@ -88,11 +89,8 @@ Updated as of `r format(Sys.Date() , "%d %B %Y")`.
 
 
 ```{r casesmap, echo=FALSE}
-dom_min <- ifelse(min(us_counties$avg_new_cases)<0,
-                  abs(floor(min(us_counties$avg_new_cases))),
-                  1)
 
-col_pal <- colorNumeric(palette = "YlOrRd", domain = log(dom_min+us_counties$avg_new_cases) )
+col_pal <- colorNumeric(palette = "YlOrRd", domain = log(1+us_counties$avg_new_cases) )
 
 county_plot = 
   us_counties %>%
@@ -108,12 +106,12 @@ county_plot =
     stroke = FALSE,
     smoothFactor = 0,
     fillOpacity = 0.7,
-    color = ~col_pal(log(dom_min+avg_new_cases))
+    color = ~col_pal(log(1+avg_new_cases))
   ) %>%
   addLegend(
     "bottomright", 
     pal = col_pal, 
-    values = ~log(dom_min+avg_new_cases),
+    values = ~log(1+avg_new_cases),
     title = "New Cases <br> (Log. Scale)",
     opacity = 1
   ) %>% 
