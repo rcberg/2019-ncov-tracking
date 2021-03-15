@@ -24,8 +24,9 @@ pacman::p_load( tidyverse ,
 
 options(tigris_class = "sf")
 
+# adding legacy here too.. 
 aid_capacity_state <- 
-  read_csv("https://healthdata.gov/node/3281106/download") %>% 
+  read_csv("https://legacy.healthdata.gov/node/3281106/download") %>% 
   filter( state != "CW" & state %in% c(state.abb,"DC")) %>% 
   clean_names() %>% 
   mutate( date = collection_date ) %>%
